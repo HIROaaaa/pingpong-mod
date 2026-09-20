@@ -24,8 +24,12 @@ public final class PingPongPhysics {
 	public static final double GRAVITY = 0.030;
 	/** 空气阻力线性项：每 tick 速度衰减比例 */
 	public static final double DRAG_LINEAR = 0.010;
-	/** 空气阻力二次项：真实阻力 ∝ v²，除以 v 后就是 ∝ v。0.016 让球在 3 格球台上不至于半路掉速 */
-	public static final double DRAG_QUADRATIC = 0.016;
+	/**
+	 * 空气阻力二次项：真实阻力 ∝ v²，除以 v 后就是 ∝ v。
+	 * 二期取 0.016，用户实测「打的太远了」，这里加到 0.022：满力度 1.15 格/tick 的球
+	 * 每 tick 多损失约 0.7% 速度，落到对面半台时已经明显掉速，更接近乒乓球的短促飞行。
+	 */
+	public static final double DRAG_QUADRATIC = 0.022;
 	/**
 	 * 马格努斯系数：a = k * (ω × v)。
 	 * 取值依据：最大自旋 5.5 搭配 0.9 格/tick 的球速时 a ≈ 0.025，

@@ -8,18 +8,28 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 
 /**
- * 乒乓球物品：右键把球【垂直上抛】，等它落下来时自己调拍形用球拍去打 ——
- * 和现实里打乒乓球的发球一样。
+ * 乒乓球物品：右键【按住蓄力】，松手把球垂直上抛 —— 和现实里发球前的抛球一样。
+ *
+ * 用户要求 5：「拿着乒乓球抛球的时候也是按下右键的时间越长，抛球高度越高，但是也要有一个上限高度」。
+ * 做法用的是原版物品使用计时（{@link #getMaxUseTime} + {@link #onStoppedUsing}），
+ * 不需要任何额外的库，也不会误判「点一下就抛」。
  *
  * 刻意不沿视线扔：扔出去玩家没时间调拍形，也没法自己「接」。
  */
 public class PingPongBallItem extends Item {
 
-	/** 上抛初速度（格/tick）。0.45 约上升 3.4 格、滞空 1.5 秒，够玩家调拍形 */
-	public static final double TOSS_SPEED = 0.45;
+	/** 最短蓄力（tick）：点一下也有这么高 */
+	private static final int MIN_CHARGE_TICKS = 3;
+	/** 蓄满需要的 tick 数（1.1 秒） */
+	private static final int FULL_CHARGE_TICKS = 22;
+
+	/** 上抛初速度下限 / 上限（格/tick）：0.34 约抬升 2 格，0.74 约抬升 9 格 */
+	public static final double MIN_TOSS_SPEED = 0.34;
+	public static final double MAX_TOSS_SPEED = 0.74;
 	/** 水平飘移比例：只带一点点视线方向的分量，免得球正好落回自己头上 */
 	public static final double TOSS_DRIFT = 0.06;
 
@@ -28,20 +38,49 @@ public class PingPongBallItem extends Item {
 	}
 
 	@Override
+	public int getMaxUseTime(ItemStack stack) {
+		// 上限给足，让玩家能一直举着球调整位置
+		return 72000;
+	}
+
+	@Override
 	public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
 		ItemStack stack = user.getStackInHand(hand);
+		// 开始蓄力：只举个球在手里，等松手（onStoppedUsing）才真正抛出去
+		user.setCurrentHand(hand);
+		return TypedActionResult.consume(stack);
+	}
+
+	@Override
+	public void onStoppedUsing(ItemStack stack, World world, net.minecraft.entity.LivingEntity user, int remainingUseTicks) {
+		if (!(user instanceof PlayerEntity player)) {
+			return;
+		}
+		int usedTicks = this.getMaxUseTime(stack) - remainingUseTicks;
+		double speed = tossSpeedFor(usedTicks);
 
 		if (!world.isClient) {
-			PingPongBallEntity.toss(world, user, TOSS_SPEED, TOSS_DRIFT);
-			world.playSound(null, user.getX(), user.getY(), user.getZ(),
-					SoundEvents.ENTITY_SNOWBALL_THROW, SoundCategory.PLAYERS, 0.6F, 1.2F);
+			PingPongBallEntity.toss(world, player, speed, TOSS_DRIFT);
+			world.playSound(null, player.getX(), player.getY(), player.getZ(),
+					SoundEvents.ENTITY_SNOWBALL_THROW, SoundCategory.PLAYERS,
+					0.45F + 0.25F * (float) chargeRatio(usedTicks),
+					1.35F - 0.35F * (float) chargeRatio(usedTicks));
 
-			if (!user.getAbilities().creativeMode) {
+			if (!player.getAbilities().creativeMode) {
 				stack.decrement(1);
 			}
-			user.getItemCooldownManager().set(this, 4);
+			player.getItemCooldownManager().set(this, 4);
 		}
+	}
 
-		return TypedActionResult.success(stack);
+	/** 按住时长 → 上抛初速度。线性映射，两头都夹紧（需求 5 的「上限高度」）。 */
+	public static double tossSpeedFor(int usedTicks) {
+		return MathHelper.lerp(chargeRatio(usedTicks), MIN_TOSS_SPEED, MAX_TOSS_SPEED);
+	}
+
+	/** 蓄力进度 0~1，HUD 用它画进度条。 */
+	public static double chargeRatio(int usedTicks) {
+		double ratio = (double) (usedTicks - MIN_CHARGE_TICKS) / (FULL_CHARGE_TICKS - MIN_CHARGE_TICKS);
+		return MathHelper.clamp(ratio, 0.0, 1.0);
 	}
 }
