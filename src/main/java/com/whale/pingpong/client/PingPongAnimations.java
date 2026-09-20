@@ -26,13 +26,22 @@ public final class PingPongAnimations {
 	private static final float TILT_VISUAL_DEGREES = 62.0F;
 	/** 拍面侧偏的视觉最大角度（度） */
 	private static final float SIDE_VISUAL_DEGREES = 52.0F;
+	/** 台内搓球时的躯干前倾角（度）：需求 19「身体需要往台内的方向前倾」 */
+	private static final float IN_TABLE_LEAN_DEGREES = 15.0F;
+	/** 台内时手臂额外向台内送出的距离（格） */
+	private static final float IN_TABLE_LEAN_REACH = 0.08F;
 
 	private PingPongAnimations() {
 	}
 
 	/** 向后兼容的重载：没给击球类型时走旧的通用挥拍。 */
 	public static void apply(MatrixStack matrices, double tilt, double sideTilt, float progress, PlayerHand hand) {
-		apply(matrices, tilt, sideTilt, progress, hand, null);
+		apply(matrices, tilt, sideTilt, progress, hand, null, false);
+	}
+
+	public static void apply(MatrixStack matrices, double tilt, double sideTilt, float progress, PlayerHand hand,
+							 StrokeType stroke) {
+		apply(matrices, tilt, sideTilt, progress, hand, stroke, false);
 	}
 
 	/**
@@ -41,11 +50,18 @@ public final class PingPongAnimations {
 	 * @param progress 挥拍进度 0~1，0 表示没在挥拍
 	 * @param hand     正手 / 反手
 	 * @param stroke   击球类型（决定动作形态）；null 时退回通用三段式
+	 * @param inTable  是否站在台内（需求 19）：台内搓球时躯干前倾、手臂往台内伸
 	 */
 	public static void apply(MatrixStack matrices, double tilt, double sideTilt, float progress, PlayerHand hand,
-							 StrokeType stroke) {
+							 StrokeType stroke, boolean inTable) {
 		float swing = MathHelper.clamp(progress, 0.0F, 1.0F);
 		int handedSign = hand == PlayerHand.FOREHAND ? 1 : -1;
+
+		// 【需求 19】台内：躯干前倾 + 手臂往台内送。改的是模型姿态，玩家视角一点不动。
+		if (inTable) {
+			matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(IN_TABLE_LEAN_DEGREES));
+			matrices.translate(0.0F, 0.0F, -IN_TABLE_LEAN_REACH);
+		}
 
 		// --- 拍面角度：常态就能看出朝向（需求 0） ---
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float) tilt * TILT_VISUAL_DEGREES));

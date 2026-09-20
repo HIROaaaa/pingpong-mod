@@ -92,8 +92,21 @@ public class PingPongPaddleItem extends Item {
 	 * 具体几何在 {@link TableGeometry}。
 	 */
 	public static Vec3d paddlePoint(PlayerEntity player, PlayerHand hand) {
+		return paddlePoint(player, hand, 0.0);
+	}
+
+	/**
+	 * 带引拍进度的版本（需求 12）。
+	 *
+	 * 引拍越深，击球点越靠后、越靠下，还绕肘画弧 —— 命中判定与动作必须用同一个点，
+	 * 否则会出现"看着够到了却没打到"。
+	 *
+	 * @param windUp 引拍进度 0~1（= 蓄力比例）
+	 */
+	public static Vec3d paddlePoint(PlayerEntity player, PlayerHand hand, double windUp) {
 		Vec3d look = player.getRotationVec(1.0F);
 		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
-		return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand);
+		boolean inTable = TableGeometry.inTable(player.getWorld(), player.getPos());
+		return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand, windUp, inTable);
 	}
 }

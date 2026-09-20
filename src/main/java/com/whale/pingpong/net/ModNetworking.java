@@ -326,11 +326,14 @@ public final class ModNetworking {
 		float power = clampPose(charge);
 		StrokeType stroke = StrokeType.select(hand == PlayerHand.BACKHAND, rightButton, power);
 
-		// 击球点：由「球台朝向 + 玩家站在球台哪一边」决定，正反手各在一侧（需求 4 / 6）
+		// 击球点：由「球台朝向 + 玩家站在球台哪一边」决定，正反手各在一侧（需求 4 / 6）。
+		// 【需求 12】带引拍进度：蓄力越深，击球点越靠后越靠下、还绕肘画弧 ——
+		// 判定用的点必须与动作显示的点一致，否则会出现"看着够到了却没打到"。
 		Vec3d eyePos = player.getEyePos();
 		Vec3d look = player.getRotationVec(1.0F);
 		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
-		Vec3d paddlePos = TableGeometry.paddlePoint(eyePos, look, outward, hand);
+		boolean inTable = TableGeometry.inTable(player.getWorld(), player.getPos());
+		Vec3d paddlePos = TableGeometry.paddlePoint(eyePos, look, outward, hand, power, inTable);
 
 		Box searchBox = Box.from(paddlePos).expand(HIT_REACH);
 		PingPongBallEntity target = null;

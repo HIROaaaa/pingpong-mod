@@ -67,7 +67,19 @@ public class HeldItemRendererMixin {
 		PingPongAnimations.apply(matrices,
 				PingPongClientState.tilt(), PingPongClientState.sideTilt(),
 				progress, PingPongClientState.hand(),
-				stroke != null ? stroke : PingPongClientState.lastStroke());
+				stroke != null ? stroke : PingPongClientState.lastStroke(),
+				pingpong$isInTable(player));
+	}
+
+	/**
+	 * 是否站在台内（需求 19）。用**眼高**做判据：球台台面世界高度 0.76，站在台边时眼高约 1.38；
+	 * 这个高度区间既排除"站在地上远处"（眼高 1.62 + 脚下无台）也排除"站在台面上"（>1.8）。
+	 * 比每帧查方块便宜，而且第一/第三人称都只需要一个近似值。
+	 */
+	@Unique
+	private static boolean pingpong$isInTable(AbstractClientPlayerEntity player) {
+		double eyeY = player.getEyePos().y;
+		return eyeY > 1.25 && eyeY < 1.62;
 	}
 
 	@Inject(method = "renderFirstPersonItem", at = @At("RETURN"))
@@ -128,7 +140,8 @@ public class HeldItemRendererMixin {
 					: 0.0F;
 		}
 
-		PingPongAnimations.apply(matrices, tilt, sideTilt, progress, hand, stroke);
+		PingPongAnimations.apply(matrices, tilt, sideTilt, progress, hand, stroke,
+				pingpong$isInTable(MinecraftClient.getInstance().player));
 	}
 
 	@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"
