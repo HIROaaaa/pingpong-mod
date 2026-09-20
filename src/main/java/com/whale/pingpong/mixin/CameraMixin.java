@@ -87,15 +87,22 @@ public class CameraMixin {
 		List<PingPongBallEntity> balls = client.world.getEntitiesByClass(
 				PingPongBallEntity.class, focusedEntity.getBoundingBox().expand(PINGPONG_TRACK_RANGE),
 				ball -> true);
-		PingPongBallEntity nearest = null;
-		double best = Double.MAX_VALUE;
+		PingPongBallEntity bestBall = null;
+		double bestScore = Double.MAX_VALUE;
 		for (PingPongBallEntity ball : balls) {
+			// 【需求 5：跟球范围太小 / 跟不上 / 跟到旧球】
+			// 打分 = 距离² − 新鲜度加成。旧实现只看距离，于是「脚边那颗没消失的旧球」
+			// 永远赢过"刚抛上去、还在头顶两格"的新球 —— 玩家抛球时相机根本不跟。
+			// 这里给 age ≤ 40 tick 的球最高 12 格² 的加成（旧球越大 age 加成越小），
+			// 于是「刚抛出的球」优先，旧球离得近时也仍然跟得动。
 			double distance = ball.squaredDistanceTo(focusedEntity);
-			if (distance < best) {
-				best = distance;
-				nearest = ball;
+			double ageBonus = Math.max(0.0, 12.0 - ball.age * 0.3);
+			double score = distance - ageBonus;
+			if (score < bestScore) {
+				bestScore = score;
+				bestBall = ball;
 			}
 		}
-		return nearest == null ? null : nearest.getPos().add(0.0, 0.14, 0.0);
+		return bestBall == null ? null : bestBall.getPos().add(0.0, 0.14, 0.0);
 	}
 }

@@ -32,21 +32,33 @@ public final class PingPongPhysics {
 	public static final double DRAG_QUADRATIC = 0.022;
 	/**
 	 * 马格努斯系数：a = k * (ω × v)。
-	 * 取值依据：最大自旋 5.5 搭配 0.9 格/tick 的球速时 a ≈ 0.025，
-	 * 略小于重力 0.030 —— 下旋球明显「飘」但不会变成滑翔机，
-	 * 上旋球叠加到约 1.8 倍重力，做出肉眼可见的下扎弧线。
+	 *
+	 * 【与自旋上限的配合关系（调一个必须调另一个）】
+	 * k 决定「力」，ω·R 决定接触点滑不滑动 —— 两者一起决定手感是否真实。
+	 * 现在 MAX_SPIN = 9.0、球半径 0.14 → ω·R ≈ 1.26，与出球速度 0.3~0.45 同量级
+	 * （真实乒乓球也是「球面速度 ≈ 球速」，这样摩擦才能把自旋真正变成前冲/回搓）。
+	 * 取 k = 0.003 让 ω=9、v=0.4 时马格努斯加速度 ≈ 0.011 ≈ 重力的 1/3 ——
+	 * 明显但不至于把球变成滑翔机（历史教训：k=0.014/ωmax=4 时下旋升力 0.048 > 重力 0.030，球飞 21 格）。
 	 */
-	public static final double MAGNUS_COEFFICIENT = 0.005;
+	public static final double MAGNUS_COEFFICIENT = 0.003;
 	/** 自旋每 tick 的保持率（空气里自旋会慢慢衰减） */
 	public static final double SPIN_DECAY = 0.988;
 	/**
 	 * 自旋上限（rad/tick）。
-	 * 关键：真实乒乓球的自旋强到「球面速度 ω·R ≈ 球速」，
-	 * 这时接触点几乎不滑动，摩擦力才会把自旋真正转成前进/后退的冲量。
-	 * 本 Mod 的球半径 0.14 格，取 ω = 5.5 时 ω·R = 0.77，正好落在球速量级上。
+	 *
+	 * 【为什么是 5.2】两头都会被卡住：
+	 * - 太小（<4）：弹跳时切向摩擦冲量小于法向冲量，「上旋球落台前冲」出不来；
+	 * - 太大（>6.5）：出球速度已经降到 0.30~0.45，而马格努斯力正比于 ω×v，
+	 *   自旋过强会让上旋球变成"滑翔机"（脚本实测 6.08 时上旋 4.9 格、下旋直接下网）。
+	 * 5.2 配 k=0.003：ω·R ≈ 0.73，与球速 0.3~0.45 同量级，弹跳能出前冲/回缩，飞行弧线也可控。
+	 * 实测（tools/physics_sanity_check.js + calibrate_hit_speed.js）：上旋落点 2.9 格、下旋 2.7 格，都在对面台面内。
 	 */
-	public static final double MAX_SPIN = 5.5;
-	/** 每次弹跳自旋额外损失 */
+	public static final double MAX_SPIN = 5.2;
+	/**
+	 * @deprecated 自旋保留率已按表面分开（见 {@link Surface#spinRetain()}），这个常量不再被物理使用，
+	 *             只保留给旧脚本读；新代码请用 {@code surface.spinRetain()} 或 {@link #groundSpinDecay(boolean)}。
+	 */
+	@Deprecated
 	public static final double SPIN_BOUNCE_RETAIN = 0.85;
 
 	private PingPongPhysics() {
@@ -57,16 +69,29 @@ public final class PingPongPhysics {
 	 *
 	 * @param restitution 恢复系数 e（法向速度保留比例）
 	 * @param friction    摩擦系数 μ（切向冲量上限 = μ|J_n|，决定自旋与速度怎么互相转化）
+	 * @param spinRetain  单次接触后自旋的保留率。
+	 *                    【为什么按表面分开】二期只有一个全局 0.85：球在**球台上**弹一下自旋就掉 15%，
+	 *                    两次弹跳后侧旋几乎归零 —— 用户报的「侧旋落地拐一下就没了」正是它。
+	 *                    台面是光滑硬木，自旋保留得比泥地高得多。
 	 */
-	public record Surface(double restitution, double friction) {
-		/** 球台台面：硬，弹得高 */
-		public static final Surface TABLE = new Surface(0.90, 0.60);
+	public record Surface(double restitution, double friction, double spinRetain) {
+		/** 球台台面：硬，弹得高，且**自旋保留多**（侧旋落地继续拐的关键） */
+		public static final Surface TABLE = new Surface(0.90, 0.60, 0.96);
 		/** 球台侧面 / 桌腿：木结构 */
-		public static final Surface TABLE_SIDE = new Surface(0.70, 0.65);
+		public static final Surface TABLE_SIDE = new Surface(0.70, 0.65, 0.90);
 		/** 球网：软，几乎吃掉动能，摩擦极大 */
-		public static final Surface NET = new Surface(0.22, 0.95);
-		/** 其他地面（泥土 / 石头 / 草地）：默认 */
-		public static final Surface GROUND = new Surface(0.75, 0.65);
+		public static final Surface NET = new Surface(0.22, 0.95, 0.60);
+		/** 其他地面（泥土 / 石头 / 草地）：默认，自旋掉得最快 */
+		public static final Surface GROUND = new Surface(0.75, 0.65, 0.85);
+	}
+
+	/**
+	 * 贴地滚动时每 tick 的自旋保留率。
+	 * 台面上 0.97（侧旋球落台后还要靠自旋继续侧拐），普通地面 0.85（快速吃掉自旋，
+	 * 否则球会被自己的自旋在地面反复「搓」着跑 —— 二期实测侧旋在地面横移 7 格以上）。
+	 */
+	public static double groundSpinDecay(boolean onTable) {
+		return onTable ? 0.97 : 0.85;
 	}
 
 	/**
@@ -154,7 +179,7 @@ public final class PingPongPhysics {
 			newSpin = spin.add(contactOffset.crossProduct(impulse).multiply(1.0 / INERTIA));
 		}
 
-		newSpin = clampSpin(newSpin.multiply(SPIN_BOUNCE_RETAIN));
+		newSpin = clampSpin(newSpin.multiply(surface.spinRetain()));
 		return new BounceResult(newVelocity, newSpin);
 	}
 

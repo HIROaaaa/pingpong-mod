@@ -185,9 +185,10 @@ public final class ModNetworking {
 		}
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeVarInt(ball.getId());
-		buf.writeDouble(ball.getVelocity().x);
-		buf.writeDouble(ball.getVelocity().y);
-		buf.writeDouble(ball.getVelocity().z);
+		Vec3d velocity = ball.getVelocity();
+		buf.writeDouble(velocity.x);
+		buf.writeDouble(velocity.y);
+		buf.writeDouble(velocity.z);
 		Vec3d spin = ball.getSpin();
 		buf.writeFloat((float) spin.x);
 		buf.writeFloat((float) spin.y);
@@ -207,6 +208,34 @@ public final class ModNetworking {
 			ServerPlayNetworking.send(player, MOTION_CHANNEL, buf);
 		}
 	}
+
+	/**
+	 * 服务端每 tick 的「按需同步」：只在球的自旋够大、而且离上次同步够久时才发。
+	 *
+	 * 【为什么要这个】原来只在**击球那一瞬间**发一次 ball_motion，于是客户端两次包之间
+	 * 只能靠原版位置包插值 —— 那里面没有马格努斯加速度，屏幕上就是一条直线，
+	 * 只有击球那一下"动一下"（用户原话：「侧旋只有击球的那一下能向侧面动一下」）。
+	 * 现在自旋球每 {@link #MOTION_RESYNC_TICKS} tick 补一次权威速度与自旋，
+	 * 客户端的预测积分就不会漂太久；自旋很小时完全不发包，几乎不增加带宽。
+	 */
+	public static void syncBallMotionIfNeeded(PingPongBallEntity ball) {
+		if (!(ball.getWorld() instanceof ServerWorld)) {
+			return;
+		}
+		Vec3d spin = ball.getSpin();
+		if (spin.lengthSquared() < MOTION_SYNC_MIN_SPIN_SQ) {
+			return;
+		}
+		if (ball.age % MOTION_RESYNC_TICKS != 0) {
+			return;
+		}
+		broadcastBallMotion(ball);
+	}
+
+	/** 自旋大于这个值时才开始按需补包（半速自旋就够明显了） */
+	private static final double MOTION_SYNC_MIN_SPIN_SQ = 0.25;
+	/** 补包间隔（tick）：2 tick 一次 ≈ 每秒 10 个包，一局里最多也就几十个球 */
+	private static final int MOTION_RESYNC_TICKS = 2;
 
 	// ==================================================================
 	// 服务端逻辑

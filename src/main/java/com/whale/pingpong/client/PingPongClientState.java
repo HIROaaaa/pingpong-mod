@@ -218,6 +218,14 @@ public final class PingPongClientState {
 					tilt = pose.tilt;
 					sideTilt = pose.side;
 				}
+			} else {
+				// 【bug 修复：切回来之后改不了拍形（需求 26）】
+				// 滚轮刚改过的这一 tick 就得把值写回槽位存档。原来只在「手里不是球拍」的分支里保存，
+				// 于是「滚完立刻切槽位」的最后一格会丢：切槽那一 tick 走的是 else 分支，
+				// 而本 tick 开头的 updateSlot() 已经用**旧存档**覆盖了 tilt/sideTilt，
+				// 保存下去的自然是旧值 —— 再切回球拍槽位读到的还是旧值，看起来就像拍形改不动了。
+				// savePose 幂等，重复写没有副作用。
+				savePose(client.player.getInventory().selectedSlot);
 			}
 			// 蓄力：左键按住时每 tick 累加，到满值封顶
 			if (client.options.attackKey.isPressed()) {

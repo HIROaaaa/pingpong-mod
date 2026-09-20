@@ -27,11 +27,17 @@ public class PingPongBallItem extends Item {
 	/** 蓄满需要的 tick 数（1.1 秒） */
 	private static final int FULL_CHARGE_TICKS = 22;
 
-	/** 上抛初速度下限 / 上限（格/tick）：0.34 约抬升 2 格，0.74 约抬升 9 格 */
-	public static final double MIN_TOSS_SPEED = 0.34;
-	public static final double MAX_TOSS_SPEED = 0.74;
-	/** 水平飘移比例：只带一点点视线方向的分量，免得球正好落回自己头上 */
-	public static final double TOSS_DRIFT = 0.06;
+	/**
+	 * 上抛初速度下限 / 上限（格/tick）。
+	 *
+	 * 【单位换算】峰值高度 = v²/(2g)，g=0.030：
+	 * 旧值 0.34 → 1.93 格、0.74 → 9.13 格（用户原话「抛球的默认高度也太高了」，
+	 * 9 格等于抛到树顶上，而球台才 0.76 格高）。
+	 * 现在 0.20 → 0.67 格、0.32 → 1.71 格：球从头顶飞起一两格再落回手边，
+	 * 滞空 13~21 tick（0.65~1.05 秒），够玩家翻腕调拍形。
+	 */
+	public static final double MIN_TOSS_SPEED = 0.20;
+	public static final double MAX_TOSS_SPEED = 0.32;
 
 	public PingPongBallItem(Settings settings) {
 		super(settings);
@@ -60,15 +66,16 @@ public class PingPongBallItem extends Item {
 		double speed = tossSpeedFor(usedTicks);
 
 		if (!world.isClient) {
-			PingPongBallEntity.toss(world, player, speed, TOSS_DRIFT);
+			PingPongBallEntity.toss(world, player, speed);
 			world.playSound(null, player.getX(), player.getY(), player.getZ(),
 					SoundEvents.ENTITY_SNOWBALL_THROW, SoundCategory.PLAYERS,
 					0.45F + 0.25F * (float) chargeRatio(usedTicks),
 					1.35F - 0.35F * (float) chargeRatio(usedTicks));
 
-			if (!player.getAbilities().creativeMode) {
-				stack.decrement(1);
-			}
+			// 【需求 24：使用不消耗】这里刻意**不做** stack.decrement(1)：
+			// 用户要求「乒乓球物品使用不消耗」，一颗球可以无限次抛。
+			// 与「一世界一球」不冲突 —— 旧球要么被潜行右键回收，要么 600 tick 后自动消失。
+			// 但 4 tick 冷却必须留着：否则狂点右键会每 tick 生成一颗球，瞬间刷满一屏。
 			player.getItemCooldownManager().set(this, 4);
 		}
 	}

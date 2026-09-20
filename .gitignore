@@ -1,4 +1,4 @@
-﻿.gradle/
+.gradle/
 build/
 run/
 out/
@@ -7,3 +7,18 @@ out/
 .idea/
 .vscode/
 *.iml
+
+# 凭据 / 密钥：绝不允许进仓库（tools/pre_push_check.ps1 也会拦）
+.env
+.env.*
+*.jks
+*.keystore
+*.pem
+*.key
+*.pfx
+*.p12
+
+# 打包产物与本地临时件
+*.tgz
+*.vsix
+local.properties
