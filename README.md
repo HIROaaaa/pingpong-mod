@@ -235,3 +235,27 @@ gradlew.bat runServer
 - 自旋：三个 `TrackedData<Float>` 自动同步，客户端用于渲染旋转与粒子。
 - 速度：击球瞬间广播 `ball_motion` 包（`PlayerLookup.tracking` + 出球者本人）。
 - 服务端会校验「手里确实拿着球拍」并限制挥拍频率，客户端无法伪造出球。
+
+---
+
+## 7. 版本与发布
+
+版本号写在 `gradle.properties` 的 `mod_version`，它同时决定：
+产物名 `build/libs/pingpong-<version>.jar`、以及 `fabric.mod.json` 里的 `version`。
+
+版本规则 `MAJOR.MINOR.PATCH`：新方块/手感调整 = MINOR，纯修复 = PATCH，存档或协议不兼容 = MAJOR。
+每次发版更新 `CHANGELOG.md`。
+
+发版流程：
+
+1. 改 `mod_version` 与 `CHANGELOG.md` → 提交推送；
+2. 打标签并推送：`git tag -a v1.1.0 -m "..."` + `git push origin v1.1.0`；
+3. `gradlew.bat build`，把 `build/libs/pingpong-<version>.jar` 作为 GitHub Release 附件上传。
+
+已发布版本：
+
+| 版本 | 标签 | 内容 |
+| --- | --- | --- |
+| 1.0.0 | `v1.0.0` | 一期初版：球拍 + 球实体 + 马格努斯物理 + 服务端权威 |
+| 1.1.0 | `v1.1.0` | 二期：修弹跳与侧旋两个真 bug、球拍 3D 模型、蓝色单方块球台 |
+
