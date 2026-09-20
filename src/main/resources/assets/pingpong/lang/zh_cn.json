@@ -3,6 +3,7 @@
 	"item.pingpong.pingpong_ball": "乒乓球",
 	"block.pingpong.pingpong_table": "乒乓球台",
 	"entity.pingpong.pingpong_ball": "乒乓球",
+	"itemGroup.pingpong.pingpong": "乒乓球",
 	"key.categories.pingpong": "乒乓球",
 	"key.pingpong.switch_hand": "切换正手/反手",
 	"key.pingpong.ball_cam": "切换跟球视角",

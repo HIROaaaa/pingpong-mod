@@ -2,6 +2,7 @@ package com.whale.pingpong;
 
 import com.whale.pingpong.block.ModBlocks;
 import com.whale.pingpong.entity.ModEntities;
+import com.whale.pingpong.item.ModItemGroups;
 import com.whale.pingpong.item.ModItems;
 import com.whale.pingpong.item.PingPongPaddleItem;
 import com.whale.pingpong.net.ModNetworking;
@@ -37,10 +38,12 @@ public class PingPongMod implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		// 顺序有讲究：物品 → 方块 → 实体 → 网络。
-		// 球台方块要先注册好，实体 tick 里的「撞到球台」判定才能认出来。
+		// 顺序有讲究：物品 → 方块 → 物品栏 → 实体 → 网络。
+		// 球台方块要先注册好，实体 tick 里的「撞到球台」判定才能认出来；
+		// 创造物品栏要在物品/方块都注册完之后再建（它要往里面塞球台方块）。
 		ModItems.register();
 		ModBlocks.register();
+		ModItemGroups.register();
 		ModEntities.register();
 		ModNetworking.registerCommon();
 		registerServerEvents();

@@ -3,6 +3,7 @@
 	"item.pingpong.pingpong_ball": "Ping Pong Ball",
 	"block.pingpong.pingpong_table": "Ping Pong Table",
 	"entity.pingpong.pingpong_ball": "Ping Pong Ball",
+	"itemGroup.pingpong.pingpong": "Ping Pong",
 	"key.categories.pingpong": "Ping Pong",
 	"key.pingpong.switch_hand": "Switch Forehand / Backhand",
 	"key.pingpong.ball_cam": "Toggle Ball-Cam",

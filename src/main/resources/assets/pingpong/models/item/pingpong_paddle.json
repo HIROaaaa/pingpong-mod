@@ -1,5 +1,5 @@
 {
-	"comment": "球拍的真 3D 模型：拍面（正面红胶皮 / 反面黑胶皮 / 侧面木色）+ 木柄。贴图是 32x32 的四象限图集，uv 0~16 覆盖整张贴图，所以每个象限取 8 个单位。",
+	"comment": "球拍 3D 模型（需求 1：要 3D 不要 2D）。三明治结构：红胶皮 / 木芯 / 黑胶皮，总厚 2.2 格像素（旧版只有 0.8，斜看就是纸片）。UV 按 32x32 四象限图集采样，见 tools/gen_textures.js 的 paddleAtlas()。",
 	"parent": "item/handheld",
 	"textures": {
 		"particle": "pingpong:item/pingpong_paddle",
@@ -7,42 +7,94 @@
 	},
 	"elements": [
 		{
-			"comment": "拍面 12x10 格像素、厚 0.8",
-			"from": [2, 5, 7.6],
-			"to": [14, 15, 8.4],
+			"comment": "正面红胶皮：12x10、厚 0.5，贴在木芯前面。uv 取左上象限（红胶皮）",
+			"from": [2, 5, 8.4],
+			"to": [14, 15, 8.9],
 			"faces": {
-				"south": { "uv": [0, 0, 8, 8], "texture": "#layer0" },
-				"north": { "uv": [8, 0, 16, 8], "texture": "#layer0" },
-				"up": { "uv": [0, 8, 8, 16], "texture": "#layer0" },
-				"down": { "uv": [0, 8, 8, 16], "texture": "#layer0" },
-				"west": { "uv": [0, 8, 8, 16], "texture": "#layer0" },
-				"east": { "uv": [0, 8, 8, 16], "texture": "#layer0" }
+				"south": { "uv": [0, 0, 12, 10], "texture": "#layer0" },
+				"north": { "uv": [0, 0, 12, 10], "texture": "#layer0" },
+				"up": { "uv": [0, 10, 12, 11], "texture": "#layer0" },
+				"down": { "uv": [0, 10, 12, 11], "texture": "#layer0" },
+				"west": { "uv": [0, 10, 12, 11], "texture": "#layer0" },
+				"east": { "uv": [0, 10, 12, 11], "texture": "#layer0" }
 			}
 		},
 		{
-			"comment": "拍柄上端的朝向指示片：竖直插在拍面中央、从拍柄一直伸出拍面，任何角度都能看出拍面朝哪儿（需求 0）",
-			"from": [7.6, 6.4, 8.4],
-			"to": [8.4, 14.6, 8.7],
+			"comment": "木芯：12x10、厚 1.2，比胶皮窄一点点，于是拍边露出一圈木色（倒角的替代做法，原版模型没有真倒角）",
+			"from": [2.15, 5.15, 7.4],
+			"to": [13.85, 14.85, 8.6],
 			"faces": {
-				"up": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"down": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"north": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"south": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"west": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"east": { "uv": [8, 8, 16, 16], "texture": "#layer0" }
+				"south": { "uv": [0, 16, 12, 26], "texture": "#layer0" },
+				"north": { "uv": [0, 16, 12, 26], "texture": "#layer0" },
+				"up": { "uv": [0, 16, 12, 17], "texture": "#layer0" },
+				"down": { "uv": [0, 16, 12, 17], "texture": "#layer0" },
+				"west": { "uv": [0, 16, 12, 17], "texture": "#layer0" },
+				"east": { "uv": [0, 16, 12, 17], "texture": "#layer0" }
 			}
 		},
 		{
-			"comment": "木柄 3x6 格像素",
+			"comment": "反面黑胶皮：0.5 厚",
+			"from": [2, 5, 7.1],
+			"to": [14, 15, 7.6],
+			"faces": {
+				"south": { "uv": [16, 0, 28, 10], "texture": "#layer0" },
+				"north": { "uv": [16, 0, 28, 10], "texture": "#layer0" },
+				"up": { "uv": [16, 10, 28, 11], "texture": "#layer0" },
+				"down": { "uv": [16, 10, 28, 11], "texture": "#layer0" },
+				"west": { "uv": [16, 10, 28, 11], "texture": "#layer0" },
+				"east": { "uv": [16, 10, 28, 11], "texture": "#layer0" }
+			}
+		},
+		{
+			"comment": "拍肩：木芯与柄的过渡块，8x2x2.2，让两者之间不是硬接缝",
+			"from": [6, 4.6, 7.2],
+			"to": [10, 6.6, 8.8],
+			"faces": {
+				"up": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"down": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"north": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"south": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"west": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"east": { "uv": [16, 16, 24, 19], "texture": "#layer0" }
+			}
+		},
+		{
+			"comment": "拍柄主体：2.4x4.8，比旧版粗一点，好看出是握把",
+			"from": [6.8, 1.2, 7.4],
+			"to": [9.2, 5.2, 8.6],
+			"faces": {
+				"up": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"down": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"north": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"south": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"west": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"east": { "uv": [16, 16, 24, 19], "texture": "#layer0" }
+			}
+		},
+		{
+			"comment": "柄底喇叭口：比柄宽 0.6，握拍时不会滑手",
 			"from": [6.5, 0, 7.3],
-			"to": [9.5, 6, 8.7],
+			"to": [9.5, 2.2, 8.7],
 			"faces": {
-				"up": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"down": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"north": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"south": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"west": { "uv": [8, 8, 16, 16], "texture": "#layer0" },
-				"east": { "uv": [8, 8, 16, 16], "texture": "#layer0" }
+				"up": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"down": { "uv": [0, 16, 8, 19], "texture": "#layer0" },
+				"north": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"south": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"west": { "uv": [16, 16, 24, 19], "texture": "#layer0" },
+				"east": { "uv": [16, 16, 24, 19], "texture": "#layer0" }
+			}
+		},
+		{
+			"comment": "朝向指示片：竖直插在拍面中央、越过拍肩伸出一点。任何角度都能一眼看出拍面朝哪（需求 0）",
+			"from": [7.6, 6.4, 8.9],
+			"to": [8.4, 14.6, 9.2],
+			"faces": {
+				"up": { "uv": [24, 16, 28, 20], "texture": "#layer0" },
+				"down": { "uv": [24, 16, 28, 20], "texture": "#layer0" },
+				"north": { "uv": [24, 16, 28, 20], "texture": "#layer0" },
+				"south": { "uv": [24, 16, 28, 20], "texture": "#layer0" },
+				"west": { "uv": [24, 16, 28, 20], "texture": "#layer0" },
+				"east": { "uv": [24, 16, 28, 20], "texture": "#layer0" }
 			}
 		}
 	],
