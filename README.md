@@ -9,10 +9,12 @@
 
 | 操作 | 效果 |
 | --- | --- |
-| 手持**乒乓球** + 右键 | **把球垂直上抛**（上升约 3.4 格、滞空约 1.5 秒） |
-| 手持**球拍** + 左键 | 挥拍击球（命中拍面位置 3 格内最近的一颗球，视角不动） |
-| **滚轮向上** | 球拍后仰 → **上旋球**（弧线下扎，速度更快） |
-| **滚轮向下** | 球拍前倾 → **下旋球**（球发飘，速度更慢） |
+| 手持**乒乓球** + **按住右键** | **蓄力抛球**：按住越久抛得越高（约 2~9 格，有上限），松手才飞出去 |
+| 手持**球拍** + **按住左键** | **蓄力击球**：按住越久打得越快、转得越狠；松手挥拍（视角不动，只有球拍在挥） |
+| **C** 键 | 切换 **正手 / 反手**（默认正手；在「选项→控制→按键绑定→乒乓球」里可改键） |
+| **V** 键 | 切换 **跟球视角**（默认关闭；开启后球始终在画面正中） |
+| **滚轮向上** | 球拍后仰 → **下旋球**（球发飘、落台往回缩） |
+| **滚轮向下** | 球拍前倾 → **上旋球**（弧线下扎，速度更快） |
 | **左 Alt + 滚轮** | 球拍左右偏斜 → **侧旋球**（飞行侧弯 + 落地侧拐） |
 | **潜行 + 滚轮** | 交还给原版，正常切换快捷栏 |
 | 手持球拍 + **潜行右键** | 回收场上的乒乓球，重新开球 |
@@ -20,7 +22,11 @@
 球拍右键**不会**生成球 —— 打法是：先用乒乓球物品把球抛起来，落下时自己调拍形去打，
 和现实里打乒乓球一样。
 
-准星下方 HUD 会显示当前拍面俯仰 / 侧偏的百分比；每次滚轮调节还会在 action bar 打出即时数字。
+**击球点不跟着视线跑**：它由「球台朝向 + 你站在球台哪一边」决定（正手偏身体外侧、反手偏内侧），
+所以两个人站在球台两端时，各自的击球点天然落在自己这一侧 —— 开跟球视角盯球也不会把球打到自己身后。
+
+准星下方 HUD 会显示：手型、拍面俯仰/侧偏百分比、跟球视角开关，以及左键力度 / 右键抛球的蓄力条；
+每次滚轮调节还会在 action bar 打出即时数字。
 
 合成：
 
@@ -59,6 +65,19 @@
 | 需要一个专门的乒乓球台，蓝色的，一个方块搞定 | `block/PingPongTableBlock.java` + 生成的蓝色贴图 |
 | 球拍要有立体建模、改角度要看得出来 | `models/item/pingpong_paddle.json` 改为真 3D（红/黑胶皮 + 木柄）+ action bar 数字反馈 |
 
+### 三期（第二轮实测反馈后）
+
+| 用户报的问题 / 要求 | 处理 |
+| --- | --- |
+| 0. 球拍看不出朝向，别的视角也看不出变动 | 拍面角度 + 手型改为**服务端权威广播**（`server/PaddlePoseTracker`、`paddle_pose` 包），`HeldItemRendererMixin` 同时注入 `renderFirstPersonItem` 与第三人称 `renderItem`；模型再加朝向指示片 |
+| 1. 球速太快打得太远，要按左键时长改力度 | 基础速度 0.85→0.30、阻力二次项 0.016→0.022；左键按下/松手状态机算蓄力，出球速度与自旋都随力度变化（服务端校验范围） |
+| 2. 切物品后俯仰/侧偏慢慢变成 0 | 删掉归零逻辑，改为**按快捷栏槽位保存**拍形（`PingPongClientState.POSES`） |
+| 3. 击球要有和现实一样的动作 | `client/PingPongAnimations` 三段式挥拍（后摆/前挥/随挥），正反手轨迹不同，第一人称与第三人称共用公式 |
+| 4. 快捷键切正反手、可改键、默认 C、默认正手、击球点分正反手 | Fabric 官方 `KeyBindingHelper` 注册按键（自动出现在原版按键设置）；`util/TableGeometry` 按球台径向 + 手型算击球点 |
+| 4.2 切换后拍形要给合适的初始值（常态板面略朝下） | `PlayerHand` 内置准备姿势：正手 tilt −0.25 / side +0.15，反手 tilt −0.35 / side −0.30 |
+| 5. 抛球按右键时长决定高度，要有上限 | `PingPongBallItem` 用原版 `getMaxUseTime` + `onStoppedUsing`，初速 0.34~0.74 格/tick 封顶 |
+| 6. V 键切换跟球视角，击球点由球台朝向与站位决定，两人不能在同一边 | `mixin/CameraMixin` 注入 `Camera.update` 平滑对准最近的球（不改玩家真实朝向）；击球点用 `TableGeometry.outward()`，站台两端自然各一侧 |
+
 ---
 
 ## 3. 项目结构
@@ -82,19 +101,27 @@ pingpong-mod/
     │   │   └── PingPongTableBlock.java  # 球台：模型与碰撞箱跨 3×2 格
     │   ├── item/
     │   │   ├── ModItems.java
-    │   │   ├── PingPongPaddleItem.java  # 只击球（+潜行右键回收球）
-    │   │   └── PingPongBallItem.java    # 右键垂直上抛
+    │   │   ├── PingPongPaddleItem.java  # 只击球（+潜行右键回收球、击球点转发 TableGeometry）
+    │   │   └── PingPongBallItem.java    # 右键按住蓄力上抛（原版 use 计时）
     │   ├── net/
-    │   │   └── ModNetworking.java       # C2S 挥拍、S2C 球运动、服务端命中判定
+    │   │   └── ModNetworking.java       # C2S paddle_action（拍形/挥拍/蓄力/跟球）、S2C paddle_pose + ball_motion
+    │   ├── server/
+    │   │   └── PaddlePoseTracker.java   # 服务端权威：每玩家的手型 + 拍面角度 + 挥拍状态，负责广播
+    │   ├── util/
+    │   │   ├── PlayerHand.java          # 正手/反手枚举（含各自的「准备姿势」拍形）
+    │   │   └── TableGeometry.java       # 找最近球台、算「台心→玩家」径向、击球点与出球方向
     │   ├── client/
-    │   │   ├── PingPongClient.java      # 客户端入口（含球台 cutout 渲染层）
-    │   │   ├── PingPongClientState.java # 拍面角度 / 挥拍状态
+    │   │   ├── PingPongClient.java      # 客户端入口：按键绑定（C/V）、蓄力状态机、姿态同步
+    │   │   ├── PingPongClientState.java # 拍形/手型/蓄力/跟球（按快捷栏槽位保存拍形）
+    │   │   ├── PaddlePoseCache.java     # 其他玩家的姿态缓存（第三人称渲染用）
+    │   │   ├── PingPongAnimations.java  # 拍面角度 + 三段式挥拍 → 矩阵变换（两视角共用）
     │   │   ├── PingPongBallRenderer.java# 球的公告板渲染
-    │   │   └── PingPongHud.java         # 准星下的拍面提示
+    │   │   └── PingPongHud.java         # 准星下的拍形/手型/蓄力条/跟球状态
     │   └── mixin/
-    │       ├── MinecraftClientMixin.java # 左键 → 发挥拍包
+    │       ├── MinecraftClientMixin.java # 左键按下 → 开始蓄力
     │       ├── MouseMixin.java           # 滚轮 → 调拍面角度 + action bar 反馈
-    │       └── HeldItemRendererMixin.java# 第一人称独立挥拍动画
+    │       ├── HeldItemRendererMixin.java# 第一人称 + 第三人称球拍姿态/挥拍动画
+    │       └── CameraMixin.java          # 跟球视角（Camera.update 后平滑对准最近的球）
     └── resources/
         ├── fabric.mod.json / pingpong.mixins.json
         ├── assets/pingpong/
@@ -117,8 +144,18 @@ pingpong-mod/
 ```
 a = (0, -g, 0) + k * (ω × v)          ← 重力 + 马格努斯
 v = drag(v + a)                        ← 线性 + 二次空气阻力
-v *= (1 - (0.010 + 0.016*|v|))
+v *= (1 - (0.010 + 0.022*|v|))
 ```
+
+出球速度由**左键蓄力力度**决定（需求 1）：
+
+```
+speed = clamp(0.30 + 0.85 * 力度 + 0.25 * 来球速度, 0.12, 1.25)   ← 再乘上旋/下旋耦合
+自旋  = 5.5 * (0.35 + 0.65 * 力度) * 拍面方向
+```
+
+一期的 `0.85 + 0.30×来球` 是固定值，用户实测「打得太快太远」，所以基础值降到 0.30、阻力加大，
+由蓄力决定实际威力；`Jt`/`Mar` 等弹跳公式不变。
 
 - 上旋（ω 与 `up × dir` 同向）：`ω × v` 指向**下**，球下扎 → 弧圈球。
 - 下旋：`ω × v` 指向**上**，球发飘 → 削球。
@@ -214,17 +251,17 @@ gradlew.bat runServer
 
 ### 已验证
 
-- `build` 编译通过，产出 `build/libs/pingpong-1.0.0.jar`；
-- `runClient` 实机启动到主菜单，日志无 Mixin 报错、无模型/贴图缺失；
-- 三个 Mixin 目标 `doAttack()` / `onMouseScroll(JDD)V` / `renderFirstPersonItem(...)`
-  均解析成真实 intermediary 签名（见产物内 `pingpong-refmap.json`）；
-- `runServer` 真实服务端：球的弹跳轨迹逐 tick 核对（见上表），
-  球台台面弹性、球网吃球、地面衰减全部符合恢复系数，全程无 `Ticking entity` 崩溃。
+- `build` 编译通过，产出 `build/libs/pingpong-1.2.0.jar`；
+- `runServer` 服务端启动无异常（`Done (3.5s)`，无 Mixin 报错、无 Ticking entity 崩溃）；
+- `runClient` 客户端启动无异常（四个 Mixin 全部应用：`doAttack` / `onMouseScroll` /
+  `renderFirstPersonItem` + `renderItem` / `Camera#update`），资源重载与图集构建无模型/贴图报错；
+- 球拍模型 JSON 坐标校验通过（三个 element 全部落在原版 `[-16, 32]` 内，无零尺寸面）；
+- 二期已实测的弹跳/侧旋轨迹仍然有效（物理公式只在出球速度与阻力项上调整）。
 
 ### 未自动化验证的部分
 
-真人手感（挥拍命中是否顺手、滚轮调节的实际体感）与双端联机同步需要真人操作，
-代码逻辑与 API 均已核对，但没有自动化测试覆盖；联机仍只做了单端验证。
+真人手感（蓄力力度是否够用、正反手击球点是否顺手、跟球视角是否晕、第三人称看到的角度是否正确）
+与双端联机同步需要真人操作，代码逻辑与 API 均已核对，但没有自动化测试覆盖；联机仍只做了单端验证。
 
 ---
 
@@ -258,6 +295,7 @@ gradlew.bat runServer
 | --- | --- | --- |
 | 1.0.0 | `v1.0.0` | 一期初版：球拍 + 球实体 + 马格努斯物理 + 服务端权威 |
 | 1.1.0 | `v1.1.0` | 二期：修弹跳与侧旋两个真 bug、球拍 3D 模型、蓝色单方块球台 |
+| 1.2.0 | `v1.2.0` | 三期：拍形广播+第三人称可见、蓄力击球/抛球、正反手（C）、跟球视角（V） |
 
 也可以一条命令发版（自动从 `CHANGELOG.md` 抽该版正文并上传 jar）：
 
