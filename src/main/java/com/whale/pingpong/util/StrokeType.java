@@ -69,12 +69,13 @@ public enum StrokeType {
 		this.swingY = swingY;
 		this.swingSpeed = swingSpeed;
 		this.surface = surface;
-		this.translationKey = "stroke.pingpong." + switch (id.substring(0, id.indexOf('_'))) {
-			case "drive" -> "drive";
-			case "loop" -> "loop";
-			case "push" -> "push";
-			default -> "chop";
-		};
+		// 【Java 8 兼容】原来这里用 switch **表达式**（Java 14+），改成先算再赋值的普通写法
+		String family = id.substring(0, id.indexOf('_'));
+		if ("drive".equals(family) || "loop".equals(family) || "push".equals(family)) {
+			this.translationKey = "stroke.pingpong." + family;
+		} else {
+			this.translationKey = "stroke.pingpong.chop";
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -101,18 +102,27 @@ public enum StrokeType {
 		return this == DRIVE_FOREHAND || this == DRIVE_BACKHAND;
 	}
 
-	/** 同一类击球的手型切换（正手 ↔ 反手）。 */
+	/** 同一类击球的手型切换（正手 ↔ 反手）。【Java 8 兼容】用传统 switch 而不是 switch 表达式。 */
 	public StrokeType flipHand() {
-		return switch (this) {
-			case DRIVE_FOREHAND -> DRIVE_BACKHAND;
-			case DRIVE_BACKHAND -> DRIVE_FOREHAND;
-			case LOOP_FOREHAND -> LOOP_BACKHAND;
-			case LOOP_BACKHAND -> LOOP_FOREHAND;
-			case PUSH_FOREHAND -> PUSH_BACKHAND;
-			case PUSH_BACKHAND -> PUSH_FOREHAND;
-			case CHOP_FOREHAND -> CHOP_BACKHAND;
-			case CHOP_BACKHAND -> CHOP_FOREHAND;
-		};
+		switch (this) {
+			case DRIVE_FOREHAND:
+				return DRIVE_BACKHAND;
+			case DRIVE_BACKHAND:
+				return DRIVE_FOREHAND;
+			case LOOP_FOREHAND:
+				return LOOP_BACKHAND;
+			case LOOP_BACKHAND:
+				return LOOP_FOREHAND;
+			case PUSH_FOREHAND:
+				return PUSH_BACKHAND;
+			case PUSH_BACKHAND:
+				return PUSH_FOREHAND;
+			case CHOP_FOREHAND:
+				return CHOP_BACKHAND;
+			case CHOP_BACKHAND:
+			default:
+				return CHOP_FOREHAND;
+		}
 	}
 
 	/** 按需切换：{@code backhand == true} 时返回反手版本，否则原样返回。 */
@@ -145,7 +155,37 @@ public enum StrokeType {
 	 *
 	 * @param forward 水平出球方向（单位向量，会重新归一化）
 	 */
-	public record Basis(Vec3d forward, Vec3d up, Vec3d right) {
+	/**
+	 * 局部基：+x = 从击球者飞向对面（水平），+y = 世界上方，+z = 击球者右手侧。
+	 * 【Java 8 兼容】普通不可变类（原来是 record）。
+	 */
+	public static final class Basis {
+		private final Vec3d forward;
+		private final Vec3d up;
+		private final Vec3d right;
+
+		public Basis(Vec3d forward, Vec3d up, Vec3d right) {
+			this.forward = forward;
+			this.up = up;
+			this.right = right;
+		}
+
+		/** 水平前进方向 */
+		public Vec3d forward() {
+			return this.forward;
+		}
+
+		/** 世界上方 */
+		public Vec3d up() {
+			return this.up;
+		}
+
+		/** 击球者右手侧 */
+		public Vec3d right() {
+			return this.right;
+		}
+
+		/** 由水平前进方向构造（会重新归一化） */
 		public static Basis of(Vec3d forwardHorizontal) {
 			Vec3d f = new Vec3d(forwardHorizontal.x, 0.0, forwardHorizontal.z);
 			f = f.lengthSquared() < 1.0e-8 ? new Vec3d(1.0, 0.0, 0.0) : f.normalize();
@@ -156,7 +196,7 @@ public enum StrokeType {
 
 		/** 把局部方向 (x, y, z) 转到世界坐标 */
 		public Vec3d localToWorld(double x, double y, double z) {
-			return forward.multiply(x).add(up.multiply(y)).add(right.multiply(z));
+			return this.forward.multiply(x).add(this.up.multiply(y)).add(this.right.multiply(z));
 		}
 	}
 

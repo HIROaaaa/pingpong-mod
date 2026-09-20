@@ -55,7 +55,9 @@ public class PingPongPaddleItem extends Item {
 		// 潜行右键：回收附近的球
 		if (!world.isClient) {
 			int removed = clearNearbyBalls(world, user);
-			if (removed > 0 && user instanceof ServerPlayerEntity serverPlayer) {
+			if (removed > 0 && user instanceof ServerPlayerEntity) {
+				// 【Java 8 兼容】显式强转代替 instanceof 模式匹配
+				ServerPlayerEntity serverPlayer = (ServerPlayerEntity) user;
 				serverPlayer.sendMessage(
 						Text.translatable("message.pingpong.cleared", removed).formatted(Formatting.GRAY), true);
 			}

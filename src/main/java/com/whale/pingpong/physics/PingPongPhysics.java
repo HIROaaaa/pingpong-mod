@@ -67,14 +67,41 @@ public final class PingPongPhysics {
 	/**
 	 * 碰撞面材质。不同表面给不同的恢复系数与摩擦 —— 这是「球台能弹、草地不弹、球网吃球」的开关。
 	 *
-	 * @param restitution 恢复系数 e（法向速度保留比例）
-	 * @param friction    摩擦系数 μ（切向冲量上限 = μ|J_n|，决定自旋与速度怎么互相转化）
-	 * @param spinRetain  单次接触后自旋的保留率。
-	 *                    【为什么按表面分开】二期只有一个全局 0.85：球在**球台上**弹一下自旋就掉 15%，
-	 *                    两次弹跳后侧旋几乎归零 —— 用户报的「侧旋落地拐一下就没了」正是它。
-	 *                    台面是光滑硬木，自旋保留得比泥地高得多。
+	 * <p>【Java 8 兼容】原来是 {@code record}（Java 16+），M5 多版本要降到 Java 8，
+	 * 所以改写成普通不可变类 + getter。字段名与访问方式保持一致（{@code restitution()} 等方法名不变），
+	 * 调用方不用改。</p>
 	 */
-	public record Surface(double restitution, double friction, double spinRetain) {
+	public static final class Surface {
+		private final double restitution;
+		private final double friction;
+		private final double spinRetain;
+
+		public Surface(double restitution, double friction, double spinRetain) {
+			this.restitution = restitution;
+			this.friction = friction;
+			this.spinRetain = spinRetain;
+		}
+
+		/** 恢复系数 e（法向速度保留比例） */
+		public double restitution() {
+			return this.restitution;
+		}
+
+		/** 摩擦系数 μ（切向冲量上限 = μ|J_n|，决定自旋与速度怎么互相转化） */
+		public double friction() {
+			return this.friction;
+		}
+
+		/**
+		 * 单次接触后自旋的保留率。
+		 * 【为什么按表面分开】二期只有一个全局 0.85：球在**球台上**弹一下自旋就掉 15%，
+		 * 两次弹跳后侧旋几乎归零 —— 用户报的「侧旋落地拐一下就没了」正是它。
+		 * 台面是光滑硬木，自旋保留得比泥地高得多。
+		 */
+		public double spinRetain() {
+			return this.spinRetain;
+		}
+
 		/** 球台台面：硬，弹得高，且**自旋保留多**（侧旋落地继续拐的关键） */
 		public static final Surface TABLE = new Surface(0.90, 0.60, 0.96);
 		/** 球台侧面 / 桌腿：木结构 */
@@ -126,10 +153,23 @@ public final class PingPongPhysics {
 		return spin;
 	}
 
-	/**
-	 * 弹跳结果：新的速度与新的自旋。
-	 */
-	public record BounceResult(Vec3d velocity, Vec3d spin) {
+	/** 弹跳结果：新的速度与新的自旋。（Java 8 兼容：普通不可变类） */
+	public static final class BounceResult {
+		private final Vec3d velocity;
+		private final Vec3d spin;
+
+		public BounceResult(Vec3d velocity, Vec3d spin) {
+			this.velocity = velocity;
+			this.spin = spin;
+		}
+
+		public Vec3d velocity() {
+			return this.velocity;
+		}
+
+		public Vec3d spin() {
+			return this.spin;
+		}
 	}
 
 	/**

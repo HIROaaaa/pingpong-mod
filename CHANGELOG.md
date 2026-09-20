@@ -8,6 +8,51 @@
 
 ---
 
+## [1.6.0] - 2026-09-20
+
+四期 M5 第二步：**源码降到 Java 8 语言级**，为 1.16.5 目标扫清语法障碍。
+这一版**没有任何玩法变化**，纯工程改动 —— 但它是多版本移植里最容易被低估的一段。
+
+### 变更（全部是为了 Java 8 兼容）
+
+- **5 个 `record` → 普通不可变类 + getter**：`PingPongPhysics.Surface` / `BounceResult`、
+  `PingPongContact.PaddleSurface` / `Result`、`StrokeType.Basis`。
+  方法名（`restitution()` / `velocity()` / `forward()` 等）保持不变，调用方零改动。
+- **3 处 `switch` 表达式 / 箭头式 `case` → 传统 switch**：
+  `StrokeType.flipHand`、`StrokeType` 构造函数的翻译键选择、`ModNetworking.handleAction`、
+  `PingPongAnimations.apply`。
+- **10 处 `instanceof` 模式匹配 → 显式强转**。
+
+### 新增
+
+- **`tools/java8_check.js` —— Java 8 语法门禁**。扫 27 个源文件，检查
+  `record` / `switch` 表达式 / 箭头 case / 文本块 / `var` / `instanceof` 模式匹配 /
+  `List.of` 等 Java 9+ 语法与便捷 API。
+  这东西当场抓出 15 处问题，其中 **10 处 `instanceof` 模式匹配是我手工检索时漏掉的** ——
+  这类"1.20.1 编译通过、切到 1.16.5 才炸"的问题靠人眼查不干净，做成门禁才可靠。
+
+### 为什么不需要装 JDK 8
+
+本机实测只有 `jre1.8.0_421`（JRE，没有 javac）。但 Gradle/Loom 支持**用新版 JDK 编译旧版字节码**：
+构建目标设成 `options.release = 8`，由 JDK 17 的 javac 产出 Java 8 字节码，**不必额外安装 JDK 8**。
+
+而且 `options.release = 8` 比"只改 source/target"更严格：它还会**按 Java 8 的 API 做检查**，
+误用 `List.of` / `Files.readString` 这类 Java 9+ API 会当场编译失败，而不是等到运行时才炸。
+门禁脚本（`tools/java8_check.js`）是第二道网。
+
+**实测验证**（这是本版最关键的证据）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 产物字节码版本 | `major version: 52` = **Java 8** ✅（改之前是 61 = Java 17） |
+| 用本机 JRE 8 直接加载类 | 成功加载，只报 Minecraft 类缺失（`NoClassDefFoundError: net/minecraft/class_243`）——**没有** `UnsupportedClassVersionError` ✅ |
+| 1.20.1 服务端加载 Java 8 字节码 | `Done (2.794s)`，正常 ✅（JVM 向下兼容，Java 17 跑 Java 8 字节码没问题） |
+| 1.20.1 客户端 | 无模型/Mixin 错误 ✅ |
+
+也就是说：**这一版的 jar 既能被 1.20.1 用，字节码也已满足 1.16.5 的运行时要求。**
+
+---
+
 ## [1.5.0] - 2026-09-20
 
 四期 M5 第一步：**版本适配层**（为多版本移植铺路）。

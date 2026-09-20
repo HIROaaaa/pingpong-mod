@@ -39,8 +39,29 @@ import net.minecraft.util.math.Vec3d;
  */
 public final class PingPongContact {
 
-	/** 接触参数：由球拍胶皮决定 */
-	public record PaddleSurface(double restitution, double friction) {
+	/**
+	 * 接触参数：由球拍胶皮决定。
+	 *
+	 * <p>【Java 8 兼容】原来是 record（Java 16+），M5 多版本要降到 Java 8 → 普通不可变类 + getter，
+	 * 方法名保持不变，调用方无需改动。</p>
+	 */
+	public static final class PaddleSurface {
+		private final double restitution;
+		private final double friction;
+
+		public PaddleSurface(double restitution, double friction) {
+			this.restitution = restitution;
+			this.friction = friction;
+		}
+
+		public double restitution() {
+			return this.restitution;
+		}
+
+		public double friction() {
+			return this.friction;
+		}
+
 		/**
 		 * 普通胶皮（攻球/挡球）：胶皮弹性一般、摩擦中等。
 		 * e=0.72 略低于球台的 0.90（胶皮比木台软），μ=0.85 是反胶的典型量级。
@@ -53,8 +74,46 @@ public final class PingPongContact {
 		public static final PaddleSurface BRUSH = new PaddleSurface(0.62, 1.15);
 	}
 
-	/** 接触结果 */
-	public record Result(Vec3d velocity, Vec3d spin, double slipSpeed, boolean slipping, double normalImpulse) {
+	/** 接触结果（Java 8 兼容：普通不可变类） */
+	public static final class Result {
+		private final Vec3d velocity;
+		private final Vec3d spin;
+		private final double slipSpeed;
+		private final boolean slipping;
+		private final double normalImpulse;
+
+		public Result(Vec3d velocity, Vec3d spin, double slipSpeed, boolean slipping, double normalImpulse) {
+			this.velocity = velocity;
+			this.spin = spin;
+			this.slipSpeed = slipSpeed;
+			this.slipping = slipping;
+			this.normalImpulse = normalImpulse;
+		}
+
+		/** 出球速度 */
+		public Vec3d velocity() {
+			return this.velocity;
+		}
+
+		/** 出球自旋 */
+		public Vec3d spin() {
+			return this.spin;
+		}
+
+		/** 接触点滑移速度（用于判断"吃住球 / 打滑"） */
+		public double slipSpeed() {
+			return this.slipSpeed;
+		}
+
+		/** 是否打滑（摩擦不足以止住滑移 = 吃不住球） */
+		public boolean slipping() {
+			return this.slipping;
+		}
+
+		/** 法向冲量大小 */
+		public double normalImpulse() {
+			return this.normalImpulse;
+		}
 	}
 
 	/**

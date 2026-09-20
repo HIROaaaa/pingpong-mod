@@ -94,11 +94,23 @@ public final class PingPongAnimations {
 			return;
 		}
 
+		// 【Java 8 兼容】传统 switch 语句（原来是箭头式 case + 多标签 case）
 		switch (stroke) {
-			case LOOP_FOREHAND, LOOP_BACKHAND -> applyLoop(matrices, windup, forward, follow, handedSign);
-			case PUSH_FOREHAND, PUSH_BACKHAND -> applyPush(matrices, windup, forward, follow, handedSign);
-			case CHOP_FOREHAND, CHOP_BACKHAND -> applyChop(matrices, windup, forward, follow, handedSign);
-			default -> applyDrive(matrices, windup, forward, follow, handedSign);
+			case LOOP_FOREHAND:
+			case LOOP_BACKHAND:
+				applyLoop(matrices, windup, forward, follow, handedSign);
+				break;
+			case PUSH_FOREHAND:
+			case PUSH_BACKHAND:
+				applyPush(matrices, windup, forward, follow, handedSign);
+				break;
+			case CHOP_FOREHAND:
+			case CHOP_BACKHAND:
+				applyChop(matrices, windup, forward, follow, handedSign);
+				break;
+			default:
+				applyDrive(matrices, windup, forward, follow, handedSign);
+				break;
 		}
 	}
 

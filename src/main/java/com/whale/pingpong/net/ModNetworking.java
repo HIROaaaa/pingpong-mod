@@ -200,9 +200,11 @@ public final class ModNetworking {
 
 	/** 服务端：把球的最新速度 / 自旋推给所有能看到它的玩家。 */
 	public static void broadcastBallMotion(PingPongBallEntity ball) {
-		if (!(ball.getWorld() instanceof ServerWorld serverWorld)) {
+		if (!(ball.getWorld() instanceof ServerWorld)) {
 			return;
 		}
+		// 【Java 8 兼容】显式强转代替 instanceof 模式匹配
+		final ServerWorld serverWorld = (ServerWorld) ball.getWorld();
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeVarInt(ball.getId());
 		Vec3d velocity = ball.getVelocity();
@@ -267,8 +269,9 @@ public final class ModNetworking {
 		}
 		PaddlePoseTracker.State state = PaddlePoseTracker.get(player);
 
+		// 【Java 8 兼容】传统 switch 语句（原来是箭头式 case，Java 14+）
 		switch (action) {
-			case ACTION_POSE -> {
+			case ACTION_POSE:
 				// 校验：必须真的拿着球拍（客户端可以伪造包，服务端说了算）
 				if (!(player.getMainHandStack().getItem() instanceof PingPongPaddleItem)) {
 					return;
@@ -286,15 +289,19 @@ public final class ModNetworking {
 				}
 				state.swingPower = 0.0F;
 				PaddlePoseTracker.broadcast(player.getServer(), player, true);
-			}
-			case ACTION_SWING -> swing(player, a, handId, state);
-			case ACTION_CHARGE -> state.swingPower = 0.0F;
-			case ACTION_BALL_CAM -> {
+				break;
+			case ACTION_SWING:
+				swing(player, a, handId, state);
+				break;
+			case ACTION_CHARGE:
+				state.swingPower = 0.0F;
+				break;
+			case ACTION_BALL_CAM:
 				state.ballCam = a > 0.5F;
 				PaddlePoseTracker.broadcast(player.getServer(), player, true);
-			}
-			default -> {
-			}
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -417,7 +424,8 @@ public final class ModNetworking {
 			return;
 		}
 		Entity entity = client.world.getEntityById(entityId);
-		if (entity instanceof PingPongBallEntity ball) {
+		if (entity instanceof PingPongBallEntity) {
+			PingPongBallEntity ball = (PingPongBallEntity) entity;
 			ball.setVelocity(vx, vy, vz);
 			ball.applyClientSpin(new Vec3d(sx, sy, sz));
 		}

@@ -71,9 +71,11 @@ public class PingPongBallItem extends Item {
 
 	@Override
 	public void onStoppedUsing(ItemStack stack, World world, net.minecraft.entity.LivingEntity user, int remainingUseTicks) {
-		if (!(user instanceof PlayerEntity player)) {
+		if (!(user instanceof PlayerEntity)) {
 			return;
 		}
+		// 【Java 8 兼容】显式强转代替 instanceof 模式匹配
+		PlayerEntity player = (PlayerEntity) user;
 		int usedTicks = this.getMaxUseTime(stack) - remainingUseTicks;
 		double speed = tossSpeedFor(usedTicks);
 

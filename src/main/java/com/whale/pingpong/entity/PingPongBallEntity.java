@@ -582,7 +582,9 @@ public class PingPongBallEntity extends Entity {
 		this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
 				SoundEvents.BLOCK_NOTE_BLOCK_HAT.value(), SoundCategory.BLOCKS, volume, pitch);
 
-		if (this.getWorld() instanceof ServerWorld serverWorld && impactSpeed > 0.25) {
+		// 【Java 8 兼容】不用 instanceof 模式匹配（Java 16+），改成显式强转
+		if (this.getWorld() instanceof ServerWorld && impactSpeed > 0.25) {
+			ServerWorld serverWorld = (ServerWorld) this.getWorld();
 			serverWorld.spawnParticles(ParticleTypes.CRIT,
 					this.getX(), this.getY() + 0.14, this.getZ(),
 					2, 0.05, 0.05, 0.05, 0.01);
@@ -802,7 +804,8 @@ public class PingPongBallEntity extends Entity {
 		this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
 				SoundEvents.ENTITY_PLAYER_ATTACK_STRONG, SoundCategory.PLAYERS, volume, pitch);
 
-		if (this.getWorld() instanceof ServerWorld serverWorld) {
+		if (this.getWorld() instanceof ServerWorld) {
+			ServerWorld serverWorld = (ServerWorld) this.getWorld();
 			serverWorld.spawnParticles(ParticleTypes.CRIT,
 					this.getX(), this.getY() + 0.14, this.getZ(),
 					3 + (int) Math.round(6.0 * hitPower), 0.08, 0.08, 0.08, 0.05);

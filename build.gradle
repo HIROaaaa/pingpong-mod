@@ -40,14 +40,19 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 17
+	// 【为什么是 8 而不是 17】M5 多版本：这份源码要同时能吃 1.20.1（JDK 17）与 1.16.5（Java 8）。
+	// - `options.release = 8` 不只是产 Java 8 字节码，它还会**按 Java 8 的 API 做检查** ——
+	//   误用 List.of / Files.readString 这类 Java 9+ API 会当场编译失败，比运行时才炸强得多。
+	// - 1.20.1 的 Fabric 生态本身要求 Java 17 运行时，但**不要求 mod 字节码是 17**：
+	//   JVM 向下兼容，Java 17 跑 Java 8 字节码完全没问题。
+	it.options.release = 8
 	it.options.encoding = "UTF-8"
 }
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 jar {
