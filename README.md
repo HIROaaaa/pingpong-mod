@@ -297,14 +297,25 @@ gradlew.bat runServer
 | 1.1.0 | `v1.1.0` | 二期：修弹跳与侧旋两个真 bug、球拍 3D 模型、蓝色单方块球台 |
 | 1.2.0 | `v1.2.0` | 三期：拍形广播+第三人称可见、蓄力击球/抛球、正反手（C）、跟球视角（V） |
 
-也可以一条命令发版（自动从 `CHANGELOG.md` 抽该版正文并上传 jar）：
+也可以一条命令发版（自动从 `CHANGELOG.md` 抽该版正文并上传 jar；**幂等**——Release 已存在时改为更新正文并换掉同名附件）：
 
 ```bat
-pwsh -ExecutionPolicy Bypass -File tools/publish_release.ps1 -Tag v1.2.0 -Jar build/libs/pingpong-1.2.0.jar
+powershell -ExecutionPolicy Bypass -File tools/publish_release.ps1 -Tag v1.3.0 -Jar build/libs/pingpong-1.3.0.jar
 ```
 
 > 本机 PowerShell 执行策略禁止直接运行 `.ps1`，所以必须带 `-ExecutionPolicy Bypass`。
 > 脚本从 git 凭据管理器读 token（本机已存），不落盘也不打印。
 > 注意本机 GitHub 走 Steam++ 加速：HTTPS 可用、SSH 22 端口不通，所以 origin 用 HTTPS。
+
+### 脚本维护须知（踩过的坑）
+
+本机**只有 PowerShell 5.1**（没有 PS7，`pwsh` 不在 PATH），所以 `tools/*.ps1` 必须满足两条：
+
+1. **文件要带 UTF-8 BOM**：脚本里有中文/emoji，PS 5.1 对无 BOM 的 UTF-8 会按系统 ANSI（GBK）解析，
+   直接报 `The string is missing the terminator` 之类的语法错。编辑脚本后若编辑器抹掉 BOM，要补回来：
+   `[System.IO.File]::ReadAllText($p) | Set-Content -Encoding UTF8 $p`（PS 5.1 的 `-Encoding UTF8` 即带 BOM）。
+2. **读任何 UTF-8 文本文件都要显式指定编码**：`Get-Content -Encoding UTF8 $f`。
+   漏掉的话「三」的字节 `E4B889` 会被当成 GBK 的「涓」，于是 Release 正文被双重编码成乱码
+   —— v1.2.0 首次发布就这样翻过车（远端字节里出现 `U+6D93` 就是它）。
 
 

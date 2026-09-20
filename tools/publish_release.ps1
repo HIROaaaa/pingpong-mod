@@ -1,4 +1,4 @@
-<#
+﻿<#
   发布一个 GitHub Release，并把对应版本的 mod jar 作为附件上传。
 
   用法（本机 PowerShell 执行策略禁止直接跑 .ps1，必须带 Bypass）：
@@ -44,7 +44,10 @@ $api = "https://api.github.com/repos/$Repo"
 $version = $Tag -replace '^v', ''
 $notes = ''
 if (Test-Path $NotesFile) {
-	$lines = Get-Content $NotesFile
+	# 【必须带 -Encoding UTF8】本文件是 UTF-8，而 PowerShell 5.1 的 Get-Content 默认按系统
+	# ANSI 代码页（中文机器是 GBK）读取，会把「三」的 UTF-8 字节 E4B889 读成「涓」，
+	# 于是 Release 正文被双重编码成乱码（v1.2.0 首次发布就这样翻过车）。
+	$lines = Get-Content -Encoding UTF8 $NotesFile
 	$start = ($lines | Select-String -Pattern "^##\s*\[?$([regex]::Escape($version))\]?" | Select-Object -First 1).LineNumber
 	if ($start) {
 		$rest = $lines[$start..($lines.Count - 1)]
@@ -59,9 +62,25 @@ Write-Host "发布 $Tag（$([math]::Round((Get-Item $Jar).Length / 1KB))KB）…
 
 $body = @{ tag_name = $Tag; name = $Title; body = $notes; draft = $false; prerelease = $false } | ConvertTo-Json -Depth 5
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
-$release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -Body $bytes -ContentType 'application/json; charset=utf-8'
-Write-Host "✅ Release 已创建：$($release.html_url)"
 
-$uploadUrl = "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets?name=$([uri]::EscapeDataString((Split-Path $Jar -Leaf)))"
+# 已存在则更新（幂等）：重复跑不会 422，也方便修正文
+$existing = $null
+try { $existing = Invoke-RestMethod -Uri "$api/releases/tags/$Tag" -Headers $headers } catch { $existing = $null }
+if ($existing) {
+	$release = Invoke-RestMethod -Method Patch -Uri "$api/releases/$($existing.id)" -Headers $headers -Body $bytes -ContentType 'application/json; charset=utf-8'
+	Write-Host "♻️ Release 已存在，已更新正文：$($release.html_url)"
+} else {
+	$release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -Body $bytes -ContentType 'application/json; charset=utf-8'
+	Write-Host "✅ Release 已创建：$($release.html_url)"
+}
+
+$fileName = Split-Path $Jar -Leaf
+$sameName = $release.assets | Where-Object { $_.name -eq $fileName } | Select-Object -First 1
+if ($sameName) {
+	Invoke-RestMethod -Method Delete -Uri "$api/releases/assets/$($sameName.id)" -Headers $headers | Out-Null
+	Write-Host "（同名旧附件已删除，重新上传）"
+}
+
+$uploadUrl = "https://uploads.github.com/repos/$Repo/releases/$($release.id)/assets?name=$([uri]::EscapeDataString($fileName))"
 $asset = Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile $Jar -ContentType 'application/java-archive'
 Write-Host "📦 附件：$($asset.name)  $([math]::Round($asset.size / 1KB))KB"
