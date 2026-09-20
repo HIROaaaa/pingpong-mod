@@ -1,0 +1,608 @@
+﻿
+> Configure project :
+Fabric Loom: 1.6.12
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :generateDLIConfig
+> Task :generateLog4jConfig
+> Task :generateRemapClasspath UP-TO-DATE
+> Task :configureLaunch
+
+> Task :runServer
+[17:13:43] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 1.20.1 with Fabric Loader 0.15.11
+[17:13:44] [main/INFO] (FabricLoader) Loading 46 mods:
+	- fabric-api 0.92.2+1.20.1
+	- fabric-api-base 0.4.31+1802ada577
+	- fabric-api-lookup-api-v1 1.6.36+1802ada577
+	- fabric-biome-api-v1 13.0.13+1802ada577
+	- fabric-block-api-v1 1.0.11+1802ada577
+	- fabric-block-view-api-v2 1.0.1+1802ada577
+	- fabric-command-api-v1 1.2.34+f71b366f77
+	- fabric-command-api-v2 2.2.13+1802ada577
+	- fabric-commands-v0 0.2.51+df3654b377
+	- fabric-containers-v0 0.1.64+df3654b377
+	- fabric-content-registries-v0 4.0.11+1802ada577
+	- fabric-convention-tags-v1 1.5.5+1802ada577
+	- fabric-crash-report-info-v1 0.2.19+1802ada577
+	- fabric-data-attachment-api-v1 1.0.0+de0fd6d177
+	- fabric-data-generation-api-v1 12.3.4+1802ada577
+	- fabric-dimensions-v1 2.1.54+1802ada577
+	- fabric-entity-events-v1 1.6.0+1c78457f77
+	- fabric-events-interaction-v0 0.6.2+1802ada577
+	- fabric-events-lifecycle-v0 0.2.63+df3654b377
+	- fabric-game-rule-api-v1 1.0.40+1802ada577
+	- fabric-gametest-api-v1 1.2.13+1802ada577
+	- fabric-item-api-v1 2.1.28+1802ada577
+	- fabric-item-group-api-v1 4.0.12+1802ada577
+	- fabric-lifecycle-events-v1 2.2.22+1802ada577
+	- fabric-loot-api-v2 1.2.1+1802ada577
+	- fabric-loot-tables-v1 1.1.45+9e7660c677
+	- fabric-message-api-v1 5.1.9+1802ada577
+	- fabric-mining-level-api-v1 2.1.50+1802ada577
+	- fabric-networking-api-v1 1.3.11+1802ada577
+	- fabric-networking-v0 0.3.51+df3654b377
+	- fabric-object-builder-api-v1 11.1.3+1802ada577
+	- fabric-particles-v1 1.1.2+1802ada577
+	- fabric-recipe-api-v1 1.0.21+1802ada577
+	- fabric-registry-sync-v0 2.3.3+1802ada577
+	- fabric-rendering-data-attachment-v1 0.3.37+92a0d36777
+	- fabric-rendering-fluids-v1 3.0.28+1802ada577
+	- fabric-resource-conditions-api-v1 2.3.8+1802ada577
+	- fabric-resource-loader-v0 0.11.10+1802ada577
+	- fabric-screen-handler-api-v1 1.3.30+1802ada577
+	- fabric-transfer-api-v1 3.3.5+8dd72ea377
+	- fabric-transitive-access-wideners-v1 4.3.1+1802ada577
+	- fabricloader 0.15.11
+	- java 17
+	- minecraft 1.20.1
+	- mixinextras 0.3.5
+	- pingpong 1.0.0
+[17:13:44] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.5 Source=file:/C:/Users/%e8%ae%a1%e7%ae%97%e6%9c%ba/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.13.3+mixin.0.8.5/9527e6b0d2449408958fd1302594dc65ec5ade9c/sponge-mixin-0.13.3+mixin.0.8.5.jar Service=Knot/Fabric Env=SERVER
+[17:13:44] [main/INFO] (FabricLoader/Mixin) Loaded Fabric development mappings for mixin remapper!
+[17:13:44] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_17
+[17:13:45] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.3.5).
+[17:13:54] [main/INFO] (PingPong) [pingpong] ƹ���� Mod �Ѽ��أ������Ȩ������ + ���Ŭ˹ЧӦ
+[17:13:54] [main/INFO] (Minecraft) Environment: authHost='https://authserver.mojang.com', accountsHost='https://api.mojang.com', sessionHost='https://sessionserver.mojang.com', servicesHost='https://api.minecraftservices.com', name='PROD'
+[17:13:56] [main/INFO] (Minecraft) Loaded 7 recipes
+[17:13:56] [main/INFO] (Minecraft) Loaded 1271 advancements
+[17:13:57] [main/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 64 new biomes in 2.074 ms
+[17:13:57] [Server thread/INFO] (Minecraft) Starting minecraft server version 1.20.1
+[17:13:57] [Server thread/INFO] (Minecraft) Loading properties
+[17:13:57] [Server thread/INFO] (Minecraft) Default game type: SURVIVAL
+[17:13:57] [Server thread/INFO] (Minecraft) Generating keypair
+[17:13:57] [Server thread/INFO] (Minecraft) Starting Minecraft server on *:25565
+[17:13:57] [Server thread/INFO] (Minecraft) Using default channel type
+[17:13:57] [Server thread/WARN] (Minecraft) **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[17:13:57] [Server thread/WARN] (Minecraft) The server will make no attempt to authenticate usernames. Beware.
+[17:13:57] [Server thread/WARN] (Minecraft) While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[17:13:57] [Server thread/WARN] (Minecraft) To change this, set "online-mode" to "true" in the server.properties file.
+[17:13:57] [Server thread/INFO] (Minecraft) Preparing level "world"
+[17:13:58] [Server thread/INFO] (Minecraft) Preparing start region for dimension minecraft:overworld
+[17:13:59] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 0%
+[17:13:59] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 0%
+[17:13:59] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 0%
+[17:13:59] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 0%
+[17:14:00] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 2%
+[17:14:00] [Worker-Main-11/INFO] (Minecraft) Preparing spawn area: 80%
+[17:14:00] [Server thread/INFO] (Minecraft) Time elapsed: 2770 ms
+[17:14:00] [Server thread/INFO] (Minecraft) Done (3.097s)! For help, type "help"
+[17:14:00] [Server thread/INFO] (PingPong) [trace] t=22 y=-59.108616631301466 vy=0.2627725175980157 vx=0.0 ground=false rest=0
+[17:14:00] [Server thread/INFO] (PingPong) [trace] t=23 y=-58.87903876759861 vy=0.22957786370285282 vx=0.0 ground=false rest=0
+[17:14:00] [Server thread/INFO] (PingPong) [trace] t=24 y=-58.68209398371167 vy=0.1969447838869412 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=25 y=-58.517264576637466 vy=0.16482940707419885 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=26 y=-58.3840743271382 vy=0.1331902494992652 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=27 y=-58.2820863517754 vy=0.10198797536280502 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=28 y=-58.21090117246377 vy=0.07118517931162759 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=29 y=-58.17015498444918 vy=0.04074618801459241 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=30 y=-58.15951810600364 vy=0.01063687844553697 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=31 y=-58.17868159745493 vy=-0.01916349145129707 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=32 y=-58.22731478120945 vy=-0.048633183754517195 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=33 y=-58.30506270228503 vy=-0.07774792107557407 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=34 y=-58.41154739031791 vy=-0.1064846880328806 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=35 y=-58.54636918234938 vy=-0.13482179203147288 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=36 y=-58.70910809689048 vy=-0.1627389145411027 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=37 y=-58.89932524965932 vy=-0.19021715276883597 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=38 y=-59.11656430139049 vy=-0.2172390517311698 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=39 y=-59.36035292822513 vy=-0.24378862683464325 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=40 y=-59.63020430539648 vy=-0.26985137717135277 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=41 y=-59.925618595221856 vy=-0.2954142898253744 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=42 y=-59.87882531166247 vy=0.24034937667506978 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=43 y=-59.67128737851843 vy=0.20753793314403762 vx=0.0 ground=false rest=0
+[17:14:01] [Server thread/INFO] (PingPong) [trace] t=44 y=-59.496029140189115 vy=0.17525823832931633 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=45 y=-59.35256108353593 vy=0.14346805665318257 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=46 y=-59.24043370744737 vy=0.11212737608856035 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=47 y=-59.15923552361415 vy=0.08119818383322369 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=48 y=-59.108591261683706 vy=0.05064426193044633 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=49 y=-59.08816026134137 vy=0.02043100034233142 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=50 y=-59.097632105950396 vy=-0.009471844609020716 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=51 y=-59.13668430368906 vy=-0.03905219773866109 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=52 y=-59.20496968815413 vy=-0.06828538446507385 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=53 y=-59.302117658505765 vy=-0.09714797035163195 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=54 y=-59.42773548345205 vy=-0.12561782494628299 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=55 y=-59.58140965962981 vy=-0.15367417617776397 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=56 y=-59.762707314797886 vy=-0.18129765516807306 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=57 y=-59.971177646229 vy=-0.20847033143111993 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=58 y=-59.91080909805004 vy=0.1763818038999321 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=59 y=-59.766233954309314 vy=0.1445751437407248 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=60 y=-59.65301460142301 vy=0.11321935288630623 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=61 y=-59.57073824943669 vy=0.08227635198632612 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=62 y=-59.51902838604185 vy=0.051709863394830885 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=63 y=-59.49754316237167 vy=0.02148522367018462 vx=0.0 ground=false rest=0
+[17:14:02] [Server thread/INFO] (PingPong) [trace] t=64 y=-59.50597163091553 vy=-0.008428468543862077 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=65 y=-59.54399218681884 vy=-0.038020555903309425 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=66 y=-59.61125850842671 vy=-0.06726632160787001 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=67 y=-59.70740079502139 vy=-0.0961422865946853 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=68 y=-59.83202706872665 vy=-0.12462627370526107 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=69 y=-59.98472453114254 vy=-0.15269746241588886 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=70 y=-59.999 vy=0.135252325490519 vx=0.0 ground=true rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=71 y=-59.89497744659673 vy=0.10402255340327521 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=72 y=-59.82178278814208 vy=0.07319465845464501 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=73 y=-59.779049928728284 vy=0.04273285941379435 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=74 y=-59.76644699191997 vy=0.012602936808314785 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=75 y=-59.783665241954814 vy=-0.017218250034845235 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=76 y=-59.83037563647913 vy=-0.046710394524315135 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=77 y=-59.90622477530415 vy=-0.07584913882502277 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=78 y=-59.999 vy=0.07845853709529942 vx=0.0 ground=true rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=79 y=-59.951063619952734 vy=0.04793638004726776 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=80 y=-59.93331175112561 vy=0.017751868827127884 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=81 y=-59.94543500071928 vy=-0.012123249593667748 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=82 y=-59.98710862792651 vy=-0.04167362720722978 vx=0.0 ground=false rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=83 y=-59.999 vy=0.05315602289532362 vx=0.0 ground=true rest=0
+[17:14:03] [Server thread/INFO] (PingPong) [trace] t=84 y=-59.976084116555974 vy=0.022915883444029124 vx=0.0 ground=false rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=85 y=-59.98309658899107 vy=-0.007012472435093109 vx=0.0 ground=false rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=86 y=-59.999 vy=0.027465321705667532 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=87 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=88 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=89 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=90 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=91 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=92 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=93 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=94 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=95 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=96 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=97 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=98 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=99 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=100 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=101 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=102 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=103 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:04] [Server thread/INFO] (PingPong) [trace] t=104 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=105 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=106 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=107 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=108 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=109 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=110 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=111 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=112 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=113 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=114 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=115 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=116 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=117 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=118 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=119 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=120 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=121 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=122 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=123 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:05] [Server thread/INFO] (PingPong) [trace] t=124 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=125 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=126 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=127 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=128 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=129 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=130 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=131 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=132 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=133 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=134 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=135 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=136 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=137 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=138 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=139 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=140 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=141 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=142 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=143 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:06] [Server thread/INFO] (PingPong) [trace] t=144 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=145 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=146 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=147 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=148 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=149 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=150 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=151 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=152 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=153 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=154 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=155 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=156 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=157 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=158 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=159 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=160 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=161 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=162 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=163 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:07] [Server thread/INFO] (PingPong) [trace] t=164 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=165 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=166 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=167 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=168 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=169 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=170 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=171 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=172 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=173 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=174 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=175 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=176 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=177 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=178 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=179 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=180 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=181 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=182 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=183 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:08] [Server thread/INFO] (PingPong) [trace] t=184 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=185 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=186 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=187 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=188 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=189 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=190 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=191 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=192 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=193 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=194 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=195 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=196 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=197 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=198 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=199 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=200 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=201 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=202 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=203 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:09] [Server thread/INFO] (PingPong) [trace] t=204 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=205 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=206 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=207 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=208 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=209 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=210 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=211 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=212 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=213 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=214 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=215 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=216 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=217 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=218 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=219 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=220 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=221 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=222 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=223 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:10] [Server thread/INFO] (PingPong) [trace] t=224 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=225 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=226 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=227 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=228 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=229 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=230 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=231 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=232 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=233 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=234 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=235 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=236 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=237 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=238 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=239 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=240 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=241 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=242 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=243 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:11] [Server thread/INFO] (PingPong) [trace] t=244 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=245 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=246 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=247 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=248 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=249 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=250 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=251 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=252 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=253 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=254 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=255 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=256 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=257 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=258 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=259 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:14:12] [Server thread/INFO] (PingPong) [trace] t=260 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:16] [Server thread/INFO] (Minecraft) No chunks were marked for force loading
+[17:16:16] [Server thread/INFO] (Minecraft) Summoned new Ping Pong Ball
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=1 y=-55.0296856 vy=-0.029685599999999996 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=2 y=-55.088717346066446 vy=-0.05903174606644223 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=3 y=-55.1767319482433 vy=-0.08801460217685558 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=4 y=-55.29334356525715 vy=-0.11661161701385564 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=5 y=-55.43814514664098 vy=-0.1448015813838224 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=6 y=-55.61070982272529 vy=-0.1725646760843156 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=7 y=-55.81059233288081 vy=-0.19988251015551814 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=8 y=-56.03733048243917 vy=-0.22673814955835653 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=9 y=-56.29044661886292 vy=-0.2531161364237545 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=10 y=-56.56944911797519 vy=-0.27900249911226077 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=11 y=-56.87383387138501 vy=-0.3043847534098162 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=12 y=-57.203085766647725 vy=-0.329251895262711 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=13 y=-57.55668015216981 vy=-0.3535943855220863 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=14 y=-57.934084279395016 vy=-0.3774041272252003 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=15 y=-58.33475871538188 vy=-0.4006744359868662 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=16 y=-58.75815871949188 vy=-0.42340000410999584 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=17 y=-59.203735578541156 vy=-0.44557685904926475 vx=0.0 ground=false rest=0
+[17:16:16] [Server thread/INFO] (PingPong) [trace] t=18 y=-59.67093789541812 vy=-0.4672023168769614 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=19 y=-59.999 vy=0.36620619855424996 vx=0.0 ground=true rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=20 y=-59.66796441715844 vy=0.33103558284156664 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=21 y=-59.371389148899475 vy=0.29657526825896274 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=22 y=-59.108616631301466 vy=0.2627725175980157 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=23 y=-58.87903876759861 vy=0.22957786370285282 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=24 y=-58.68209398371167 vy=0.1969447838869412 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=25 y=-58.517264576637466 vy=0.16482940707419885 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=26 y=-58.3840743271382 vy=0.1331902494992652 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=27 y=-58.2820863517754 vy=0.10198797536280502 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=28 y=-58.21090117246377 vy=0.07118517931162759 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=29 y=-58.17015498444918 vy=0.04074618801459241 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=30 y=-58.15951810600364 vy=0.01063687844553697 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=31 y=-58.17868159745493 vy=-0.01916349145129707 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=32 y=-58.22731478120945 vy=-0.048633183754517195 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=33 y=-58.30506270228503 vy=-0.07774792107557407 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=34 y=-58.41154739031791 vy=-0.1064846880328806 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=35 y=-58.54636918234938 vy=-0.13482179203147288 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=36 y=-58.70910809689048 vy=-0.1627389145411027 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=37 y=-58.89932524965932 vy=-0.19021715276883597 vx=0.0 ground=false rest=0
+[17:16:17] [Server thread/INFO] (PingPong) [trace] t=38 y=-59.11656430139049 vy=-0.2172390517311698 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=39 y=-59.36035292822513 vy=-0.24378862683464325 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=40 y=-59.63020430539648 vy=-0.26985137717135277 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=41 y=-59.925618595221856 vy=-0.2954142898253744 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=42 y=-59.87882531166247 vy=0.24034937667506978 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=43 y=-59.67128737851843 vy=0.20753793314403762 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=44 y=-59.496029140189115 vy=0.17525823832931633 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=45 y=-59.35256108353593 vy=0.14346805665318257 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=46 y=-59.24043370744737 vy=0.11212737608856035 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=47 y=-59.15923552361415 vy=0.08119818383322369 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=48 y=-59.108591261683706 vy=0.05064426193044633 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=49 y=-59.08816026134137 vy=0.02043100034233142 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=50 y=-59.097632105950396 vy=-0.009471844609020716 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=51 y=-59.13668430368906 vy=-0.03905219773866109 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=52 y=-59.20496968815413 vy=-0.06828538446507385 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=53 y=-59.302117658505765 vy=-0.09714797035163195 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=54 y=-59.42773548345205 vy=-0.12561782494628299 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=55 y=-59.58140965962981 vy=-0.15367417617776397 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=56 y=-59.762707314797886 vy=-0.18129765516807306 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=57 y=-59.971177646229 vy=-0.20847033143111993 vx=0.0 ground=false rest=0
+[17:16:18] [Server thread/INFO] (PingPong) [trace] t=58 y=-59.91080909805004 vy=0.1763818038999321 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=59 y=-59.766233954309314 vy=0.1445751437407248 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=60 y=-59.65301460142301 vy=0.11321935288630623 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=61 y=-59.57073824943669 vy=0.08227635198632612 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=62 y=-59.51902838604185 vy=0.051709863394830885 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=63 y=-59.49754316237167 vy=0.02148522367018462 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=64 y=-59.50597163091553 vy=-0.008428468543862077 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=65 y=-59.54399218681884 vy=-0.038020555903309425 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=66 y=-59.61125850842671 vy=-0.06726632160787001 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=67 y=-59.70740079502139 vy=-0.0961422865946853 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=68 y=-59.83202706872665 vy=-0.12462627370526107 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=69 y=-59.98472453114254 vy=-0.15269746241588886 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=70 y=-59.999 vy=0.135252325490519 vx=0.0 ground=true rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=71 y=-59.89497744659673 vy=0.10402255340327521 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=72 y=-59.82178278814208 vy=0.07319465845464501 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=73 y=-59.779049928728284 vy=0.04273285941379435 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=74 y=-59.76644699191997 vy=0.012602936808314785 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=75 y=-59.783665241954814 vy=-0.017218250034845235 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=76 y=-59.83037563647913 vy=-0.046710394524315135 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=77 y=-59.90622477530415 vy=-0.07584913882502277 vx=0.0 ground=false rest=0
+[17:16:19] [Server thread/INFO] (PingPong) [trace] t=78 y=-59.999 vy=0.07845853709529942 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=79 y=-59.951063619952734 vy=0.04793638004726776 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=80 y=-59.93331175112561 vy=0.017751868827127884 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=81 y=-59.94543500071928 vy=-0.012123249593667748 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=82 y=-59.98710862792651 vy=-0.04167362720722978 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=83 y=-59.999 vy=0.05315602289532362 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=84 y=-59.976084116555974 vy=0.022915883444029124 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=85 y=-59.98309658899107 vy=-0.007012472435093109 vx=0.0 ground=false rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=86 y=-59.999 vy=0.027465321705667532 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=87 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=88 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=89 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=90 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=91 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=92 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=93 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=94 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=95 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=96 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=97 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:20] [Server thread/INFO] (PingPong) [trace] t=98 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=99 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=100 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=101 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=102 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=103 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=104 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=105 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=106 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=107 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=108 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=109 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=110 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=111 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=112 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=113 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=114 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=115 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=116 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=117 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:21] [Server thread/INFO] (PingPong) [trace] t=118 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=119 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=120 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=121 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=122 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=123 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=124 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=125 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=126 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=127 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=128 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=129 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=130 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=131 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=132 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=133 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=134 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=135 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=136 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=137 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:22] [Server thread/INFO] (PingPong) [trace] t=138 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=139 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=140 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=141 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=142 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=143 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=144 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=145 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=146 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=147 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=148 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=149 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=150 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=151 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=152 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=153 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=154 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=155 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=156 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=157 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:23] [Server thread/INFO] (PingPong) [trace] t=158 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=159 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=160 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=161 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=162 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=163 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=164 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=165 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=166 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=167 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=168 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=169 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=170 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=171 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=172 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=173 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=174 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=175 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=176 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=177 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:24] [Server thread/INFO] (PingPong) [trace] t=178 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=179 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=180 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=181 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=182 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=183 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=184 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=185 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=186 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=187 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=188 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=189 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=190 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=191 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=192 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=193 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=194 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=195 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=196 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=197 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:25] [Server thread/INFO] (PingPong) [trace] t=198 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=199 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=200 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=201 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=202 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=203 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=204 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=205 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=206 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=207 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=208 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=209 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=210 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=211 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=212 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=213 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=214 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=215 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=216 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=217 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:26] [Server thread/INFO] (PingPong) [trace] t=218 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=219 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=220 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=221 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=222 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=223 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=224 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=225 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=226 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=227 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=228 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=229 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=230 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=231 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=232 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=233 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=234 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=235 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=236 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=237 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:27] [Server thread/INFO] (PingPong) [trace] t=238 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=239 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=240 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=241 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=242 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=243 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=244 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=245 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=246 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=247 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=248 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=249 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=250 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=251 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=252 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=253 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=254 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=255 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=256 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=257 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:28] [Server thread/INFO] (PingPong) [trace] t=258 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:29] [Server thread/INFO] (PingPong) [trace] t=259 y=-59.999 vy=0.0 vx=0.0 ground=true rest=1
+[17:16:29] [Server thread/INFO] (PingPong) [trace] t=260 y=-59.999 vy=0.022264199999999994 vx=0.0 ground=true rest=0
+[17:16:30] [Server thread/INFO] (Minecraft) Stopping the server
+[17:16:30] [Server thread/INFO] (Minecraft) Stopping server
+[17:16:30] [Server thread/INFO] (Minecraft) Saving players
+[17:16:30] [Server thread/INFO] (Minecraft) Saving worlds
+[17:16:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[17:16:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[17:16:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[17:16:30] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:16:30] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:16:30] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:16:30] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+
+BUILD SUCCESSFUL in 2m 50s
+6 actionable tasks: 3 executed, 3 up-to-date
+
+=== STDERR ===
+

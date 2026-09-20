@@ -5,8 +5,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
@@ -22,18 +21,16 @@ import java.util.List;
  * 乒乓球拍。
  *
  * 操作：
- * - 左键：挥拍击球（客户端打包发给服务端判定，见 ModNetworking）
- * - 右键：发球（在身前生成一颗低速球）
- * - 潜行 + 右键：清掉附近的球，方便重新开始
+ * - 左键：挥拍击球（客户端打包发给服务端判定，见 ModNetworking），不改变玩家视角
+ * - 潜行 + 右键：回收场上的乒乓球，方便重新开始
  *
- * 注意：挥拍【不会】改变玩家视角，服务端也从不调用 player.lookAt / setYaw，
- * 只做击球判定 + 挥臂动画，所以视角始终由玩家自己控制。
+ * 【注意】球拍<b>只负责击球</b>，右键不会生成或打出乒乓球。
+ * 球由「乒乓球」物品单独上抛（见 {@link PingPongBallItem}），玩家自己调拍形去击球 ——
+ * 这是用户明确要求的交互，不要在这里加「便利」的自动发球。
  */
 public class PingPongPaddleItem extends Item {
 
-	/** 发球冷却（tick） */
-	public static final int SERVE_COOLDOWN = 8;
-	/** 清球半径（格） */
+	/** 潜行右键回收球的半径（格） */
 	public static final double CLEAR_RADIUS = 16.0;
 
 	public PingPongPaddleItem(Settings settings) {
@@ -44,25 +41,19 @@ public class PingPongPaddleItem extends Item {
 	public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
 		ItemStack stack = user.getStackInHand(hand);
 
-		if (world.isClient) {
-			// 客户端只负责摆手；真正生成实体在服务端做
-			user.swingHand(hand);
-			return TypedActionResult.success(stack);
+		// 普通右键：什么都不做（球拍不产生球）
+		if (!user.isSneaking()) {
+			return TypedActionResult.pass(stack);
 		}
 
-		if (user.isSneaking()) {
+		// 潜行右键：回收附近的球
+		if (!world.isClient) {
 			int removed = clearNearbyBalls(world, user);
-			if (removed > 0 && user instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
-				serverPlayer.sendMessage(Text.translatable("message.pingpong.cleared", removed).formatted(Formatting.GRAY), true);
+			if (removed > 0 && user instanceof ServerPlayerEntity serverPlayer) {
+				serverPlayer.sendMessage(
+						Text.translatable("message.pingpong.cleared", removed).formatted(Formatting.GRAY), true);
 			}
-		} else {
-			// 发球：球从身前轻轻抛出去，玩家再用左键挥拍开打
-			PingPongBallEntity.spawn(world, user, 0.45, 0.12);
-			world.playSound(null, user.getX(), user.getY(), user.getZ(),
-					SoundEvents.ENTITY_SNOWBALL_THROW, SoundCategory.PLAYERS, 0.7F, 1.4F);
 		}
-
-		user.getItemCooldownManager().set(this, SERVE_COOLDOWN);
 		return TypedActionResult.success(stack);
 	}
 
@@ -81,12 +72,12 @@ public class PingPongPaddleItem extends Item {
 		return balls.size();
 	}
 
-	/** 供客户端 HUD 判断「手里是不是球拍」。 */
+	/** 供客户端 HUD / 挥拍判定判断「手里是不是球拍」。 */
 	public static boolean isHoldingPaddle(PlayerEntity player) {
 		return player != null && player.getMainHandStack().getItem() instanceof PingPongPaddleItem;
 	}
 
-	/** 未被使用，留作调试：球拍正前方的击球点。 */
+	/** 球拍正前方的击球点（眼睛前方 1.1 格），服务端命中判定用它当圆心。 */
 	public static Vec3d paddlePoint(PlayerEntity player) {
 		return player.getEyePos().add(player.getRotationVec(1.0F).multiply(1.1));
 	}

@@ -1,6 +1,17 @@
 /*
  * 极简 PNG 生成器：手写 IHDR/IDAT/IEND + zlib，避免引入任何依赖。
  * 运行：node tools/gen_textures.js
+ *
+ * 生成清单：
+ *   textures/item/pingpong_ball.png     16x16  乒乓球（物品 + 实体共用）
+ *   textures/entity/pingpong_ball.png   16x16  同上（实体用）
+ *   textures/item/pingpong_paddle.png   32x32  球拍 3D 模型贴图集（红胶皮/黑胶皮/木色/柄色 四象限）
+ *   textures/item/pingpong_table.png    16x16  球台的物品图标
+ *   textures/block/table_top.png        16x16  蓝色台面
+ *   textures/block/table_leg.png        16x16  深色桌腿
+ *   textures/block/table_line.png       16x16  白色边线
+ *   textures/block/table_net.png        16x16  白色球网（带透明孔，需 cutout 渲染层）
+ *   icon.png                            128x128 Mod 图标
  */
 const fs = require('fs');
 const path = require('path');
@@ -91,9 +102,18 @@ class Canvas {
     }
     return out;
   }
-  save(file) {
+  /** 把另一张画布贴到 (ox, oy) */
+  blit(src, ox, oy) {
+    for (let y = 0; y < src.size; y++) {
+      for (let x = 0; x < src.size; x++) {
+        const px = src.get(x, y);
+        if (px[3] > 0) this.set(x + ox, y + oy, px);
+      }
+    }
+  }
+  save(file, width = this.size, height = this.size) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, encodePng(this.size, this.size, this.data));
+    fs.writeFileSync(file, encodePng(width, height, this.data));
     console.log('written', file);
   }
 }
@@ -104,14 +124,137 @@ const WOOD_LIGHT = [176, 128, 72];
 const RUBBER = [178, 34, 34];
 const RUBBER_DARK = [122, 18, 18];
 const RUBBER_LIGHT = [214, 64, 52];
+// 蓝色球台（真实比赛用台是深蓝）
+const TABLE_BLUE = [22, 74, 148];
+const TABLE_BLUE_DARK = [16, 56, 116];
 
-// ---------- 球拍 16x16：斜握柄 + 红色胶皮拍面 ----------
-function paddle() {
+// ---------- 乒乓球 16x16：白球 + 橙色缝线 ----------
+function ball() {
   const c = new Canvas(16);
-  // 拍面（圆心偏右上）
+  const cx = 8, cy = 8, r = 6;
+  c.disc(cx, cy, r, [245, 245, 240]);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > r - 1.2 && d <= r) c.set(x, y, [196, 196, 190]);       // 边缘阴影
+      else if (d <= r) {
+        const shade = 1 - 0.28 * ((dx + dy) / (2 * r)) - 0.5;
+        const base = [246, 246, 240];
+        c.set(x, y, base.map((v) => Math.max(0, Math.min(255, Math.round(v * (1 + shade * 0.18))))));
+      }
+    }
+  }
+  for (let y = 0; y < 16; y++) {
+    const t = (y - cy) / r;
+    if (Math.abs(t) > 0.95) continue;
+    const x = Math.round(cx + r * 0.62 - 1.6 * Math.abs(t));
+    c.set(x, y, [226, 122, 40]);
+    c.set(x + 1, y, [200, 100, 30, 140]);
+  }
+  return c;
+}
+
+/** 胶皮纹理：底色 + 细颗粒点，做出涩涩的橡胶感 */
+function rubberPatch(base, dot) {
+  const c = new Canvas(16);
+  c.rect(0, 0, 15, 15, base);
+  for (let y = 1; y < 16; y += 3) {
+    for (let x = 1; x < 16; x += 3) {
+      c.set(x, y, dot);
+      c.set(x + 1, y + 1, dot);
+    }
+  }
+  return c;
+}
+
+/** 木纹 */
+function woodPatch(base, dark, light) {
+  const c = new Canvas(16);
+  c.rect(0, 0, 15, 15, base);
+  for (let y = 0; y < 16; y++) {
+    if (y % 5 === 0) c.rect(0, y, 15, y, dark);
+    if (y % 7 === 3) c.rect(0, y, 15, y, light);
+  }
+  return c;
+}
+
+/**
+ * 球拍 3D 模型贴图集 32x32（四个象限）。
+ * 模型 JSON 里的 uv 是 0~16 覆盖整张贴图，所以：
+ *   左上 [0,0,8,8]   红胶皮（正面）
+ *   右上 [8,0,16,8]  黑胶皮（反面）
+ *   左下 [0,8,8,16]  木色（拍边）
+ *   右下 [8,8,16,16] 深木色（拍柄）
+ */
+function paddleAtlas() {
+  const c = new Canvas(32);
+  c.blit(rubberPatch(RUBBER, RUBBER_DARK), 0, 0);
+  c.blit(rubberPatch([28, 28, 30], [52, 52, 56]), 16, 0);
+  c.blit(woodPatch(WOOD, WOOD_DARK, WOOD_LIGHT), 0, 16);
+  c.blit(woodPatch(WOOD_DARK, [66, 44, 22], WOOD), 16, 16);
+  return c;
+}
+
+/** 蓝色台面：深蓝底 + 极细横纹 */
+function tableTop() {
+  const c = new Canvas(16);
+  c.rect(0, 0, 15, 15, TABLE_BLUE);
+  for (let y = 0; y < 16; y += 4) c.rect(0, y, 15, y, TABLE_BLUE_DARK);
+  return c;
+}
+
+/** 白色边线 / 中线：纯白 */
+function tableLine() {
+  const c = new Canvas(16);
+  c.rect(0, 0, 15, 15, [242, 242, 238]);
+  return c;
+}
+
+/** 球网：白色网线 + 透明孔 */
+function tableNet() {
+  const c = new Canvas(16);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const isThread = y === 0 || y === 15 || x % 3 === 0 || y % 4 === 0;
+      if (isThread) c.set(x, y, [236, 236, 232]);
+    }
+  }
+  return c;
+}
+
+/** 球台的物品图标 16x16：台面 + 网 + 白线 */
+function tableIcon() {
+  const c = new Canvas(16);
+  c.rect(0, 0, 15, 15, [0, 0, 0, 0]);
+  // 台面（透视成一个梯形太麻烦，画成俯视 + 一点立体感）
+  c.rect(1, 3, 14, 12, TABLE_BLUE);
+  c.rect(1, 3, 14, 4, [30, 92, 172]);      // 远边亮一点
+  c.rect(1, 11, 14, 12, TABLE_BLUE_DARK);  // 近边暗一点
+  // 白色边线
+  c.rect(1, 3, 14, 3, [242, 242, 238]);
+  c.rect(1, 12, 14, 12, [242, 242, 238]);
+  c.set(1, 4, [242, 242, 238]); c.set(1, 11, [242, 242, 238]);
+  c.set(14, 4, [242, 242, 238]); c.set(14, 11, [242, 242, 238]);
+  // 中线
+  c.rect(7, 4, 8, 11, [242, 242, 238]);
+  // 球网（横跨中间）
+  for (let x = 1; x <= 14; x += 1) {
+    c.set(x, 7, [236, 236, 232]);
+    c.set(x, 8, [220, 220, 216]);
+  }
+  c.set(3, 6, [236, 236, 232]); c.set(11, 6, [236, 236, 232]);
+  // 桌腿
+  c.rect(2, 13, 3, 15, [70, 48, 26]);
+  c.rect(12, 13, 13, 15, [70, 48, 26]);
+  return c;
+}
+
+/** 图标里用的平面球拍小图（不从 3D 贴图集里裁，避免模糊） */
+function paddleSprite() {
+  const c = new Canvas(16);
   const cx = 10.2, cy = 5.4, r = 4.6;
   c.disc(cx, cy, r, RUBBER);
-  // 胶皮边缘加深，做出厚度感
   for (let y = 0; y < 16; y++) {
     for (let x = 0; x < 16; x++) {
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
@@ -119,10 +262,7 @@ function paddle() {
       if (d > r - 1.0 && d <= r) c.set(x, y, RUBBER_DARK);
     }
   }
-  // 高光
   c.disc(cx - 1.4, cy - 1.4, 1.5, RUBBER_LIGHT);
-
-  // 木柄：从拍面左下斜向左下
   const handle = [
     [8, 8], [8, 9], [7, 9], [7, 10], [6, 10], [6, 11],
     [5, 11], [5, 12], [4, 12], [4, 13], [3, 13], [3, 14], [2, 14], [2, 15],
@@ -136,63 +276,43 @@ function paddle() {
   return c;
 }
 
-// ---------- 乒乓球 16x16：白球 + 橙色缝线 ----------
-function ball() {
-  const c = new Canvas(16);
-  const cx = 8, cy = 8, r = 6;
-  c.disc(cx, cy, r, [245, 245, 240]);
-  for (let y = 0; y < 16; y++) {
-    for (let x = 0; x < 16; x++) {
-      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d > r - 1.2 && d <= r) c.set(x, y, [196, 196, 190]);       // 边缘阴影
-      else if (d <= r) {
-        // 左下暗、右上亮
-        const shade = 1 - 0.28 * ((dx + dy) / (2 * r)) - 0.5;
-        const base = [246, 246, 240];
-        c.set(x, y, base.map((v, i) => Math.max(0, Math.min(255, Math.round(v * (1 + shade * 0.18))))));
-      }
-    }
-  }
-  // 橙色缝线（一条弧）
-  for (let y = 0; y < 16; y++) {
-    const t = (y - cy) / r;
-    if (Math.abs(t) > 0.95) continue;
-    const x = Math.round(cx + r * 0.62 - 1.6 * Math.abs(t));
-    c.set(x, y, [226, 122, 40]);
-    c.set(x + 1, y, [200, 100, 30, 140]);
-  }
-  return c;
-}
-
-// ---------- 图标 128x128 ----------
+/** Mod 图标 128x128：蓝色球台 + 球拍 + 球 */
 function icon() {
   const out = new Canvas(128);
-  // 背景：深色球台
-  out.rect(0, 0, 127, 127, [22, 40, 52]);
-  out.rect(0, 0, 127, 3, [40, 70, 90]);
-  out.rect(0, 124, 127, 127, [40, 70, 90]);
-  // 放大后的球拍（7 倍 = 112）
-  const p = paddle().scaled(7);
-  for (let y = 0; y < 112; y++) {
-    for (let x = 0; x < 112; x++) {
-      const px = p.get(x, y);
-      if (px[3] > 0) out.set(x + 6, y + 8, px);
-    }
+  out.rect(0, 0, 127, 127, [12, 24, 36]);
+  // 蓝色台面
+  out.rect(6, 30, 121, 106, TABLE_BLUE);
+  out.rect(6, 30, 121, 34, [30, 92, 172]);
+  out.rect(6, 102, 121, 106, TABLE_BLUE_DARK);
+  out.rect(6, 30, 121, 33, [242, 242, 238]);
+  out.rect(6, 103, 121, 106, [242, 242, 238]);
+  out.rect(6, 34, 10, 102, [242, 242, 238]);
+  out.rect(117, 34, 121, 102, [242, 242, 238]);
+  out.rect(61, 34, 66, 102, [242, 242, 238]);
+  // 球网
+  for (let x = 6; x <= 121; x++) {
+    out.set(x, 65, [236, 236, 232]);
+    out.set(x, 68, [228, 228, 224]);
   }
-  // 右下角一颗球
-  const b = ball().scaled(2);
-  for (let y = 0; y < 32; y++) {
-    for (let x = 0; x < 32; x++) {
-      const px = b.get(x, y);
-      if (px[3] > 0) out.set(x + 88, y + 88, px);
-    }
-  }
+  out.rect(6, 61, 121, 61, [248, 248, 244]);
+  // 球拍
+  const p = paddleSprite().scaled(5);
+  out.blit(p, 10, 4);
+  // 球
+  out.blit(ball().scaled(3), 88, 8);
   return out;
 }
 
 const root = path.join(__dirname, '..', 'src', 'main', 'resources', 'assets', 'pingpong');
-paddle().save(path.join(root, 'textures', 'item', 'pingpong_paddle.png'));
-ball().save(path.join(root, 'textures', 'item', 'pingpong_ball.png'));
+const blockDir = path.join(root, 'textures', 'block');
+const itemDir = path.join(root, 'textures', 'item');
+
+ball().save(path.join(itemDir, 'pingpong_ball.png'));
 ball().save(path.join(root, 'textures', 'entity', 'pingpong_ball.png'));
+paddleAtlas().save(path.join(itemDir, 'pingpong_paddle.png'));
+tableIcon().save(path.join(itemDir, 'pingpong_table.png'));
+tableTop().save(path.join(blockDir, 'table_top.png'));
+woodPatch(WOOD_DARK, [66, 44, 22], WOOD).save(path.join(blockDir, 'table_leg.png'));
+tableLine().save(path.join(blockDir, 'table_line.png'));
+tableNet().save(path.join(blockDir, 'table_net.png'));
 icon().save(path.join(root, 'icon.png'));

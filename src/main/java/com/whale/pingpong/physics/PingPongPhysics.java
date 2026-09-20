@@ -4,7 +4,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * 乒乓球物理模型（纯数学，不碰世界，方便单独调参）。
+ * 乒乓球物理模型（纯数学，不碰世界，方便单独调参 + 单元测试）。
  *
  * 单位约定：长度=格(block)，时间=tick(1 tick = 1/20 秒)，自旋 ω = rad/tick。
  * 真实乒乓球：直径 40mm、质量 2.7g、空心壳（I = 2/3 m r²）、空气阻力极大、马格努斯效应极明显。
@@ -24,8 +24,8 @@ public final class PingPongPhysics {
 	public static final double GRAVITY = 0.030;
 	/** 空气阻力线性项：每 tick 速度衰减比例 */
 	public static final double DRAG_LINEAR = 0.010;
-	/** 空气阻力二次项：随速度线性增长（真实阻力 ∝ v²，除以 v 后就是 ∝ v） */
-	public static final double DRAG_QUADRATIC = 0.020;
+	/** 空气阻力二次项：真实阻力 ∝ v²，除以 v 后就是 ∝ v。0.016 让球在 3 格球台上不至于半路掉速 */
+	public static final double DRAG_QUADRATIC = 0.016;
 	/**
 	 * 马格努斯系数：a = k * (ω × v)。
 	 * 取值依据：最大自旋 5.5 搭配 0.9 格/tick 的球速时 a ≈ 0.025，
@@ -42,11 +42,6 @@ public final class PingPongPhysics {
 	 * 本 Mod 的球半径 0.14 格，取 ω = 5.5 时 ω·R = 0.77，正好落在球速量级上。
 	 */
 	public static final double MAX_SPIN = 5.5;
-
-	/** 弹跳恢复系数（法向速度保留比例），乒乓球偏弹，取 0.72 */
-	public static final double RESTITUTION = 0.72;
-	/** 台面/地面摩擦系数 μ，决定自旋和速度之间怎么互相转化 */
-	public static final double FRICTION = 0.65;
 	/** 每次弹跳自旋额外损失 */
 	public static final double SPIN_BOUNCE_RETAIN = 0.85;
 
@@ -54,10 +49,27 @@ public final class PingPongPhysics {
 	}
 
 	/**
+	 * 碰撞面材质。不同表面给不同的恢复系数与摩擦 —— 这是「球台能弹、草地不弹、球网吃球」的开关。
+	 *
+	 * @param restitution 恢复系数 e（法向速度保留比例）
+	 * @param friction    摩擦系数 μ（切向冲量上限 = μ|J_n|，决定自旋与速度怎么互相转化）
+	 */
+	public record Surface(double restitution, double friction) {
+		/** 球台台面：硬，弹得高 */
+		public static final Surface TABLE = new Surface(0.90, 0.60);
+		/** 球台侧面 / 桌腿：木结构 */
+		public static final Surface TABLE_SIDE = new Surface(0.70, 0.65);
+		/** 球网：软，几乎吃掉动能，摩擦极大 */
+		public static final Surface NET = new Surface(0.22, 0.95);
+		/** 其他地面（泥土 / 石头 / 草地）：默认 */
+		public static final Surface GROUND = new Surface(0.75, 0.65);
+	}
+
+	/**
 	 * 马格努斯加速度：a = k (ω × v)。
 	 * 上旋球（ω 与 up×dir 同向）→ a 向下 → 弧线下扎；
 	 * 下旋球 → a 向上 → 球「飘」；
-	 * 侧旋球 → 横向加速 → 香蕉球。
+	 * 侧旋球（自旋轴朝行进方向倾斜）→ 横向加速 → 香蕉球。
 	 */
 	public static Vec3d magnusAcceleration(Vec3d velocity, Vec3d spin) {
 		return spin.crossProduct(velocity).multiply(MAGNUS_COEFFICIENT);
@@ -101,10 +113,12 @@ public final class PingPongPhysics {
 	 * 4. 冲量同时改变线速度（v += J/m）和角速度（ω += (r × J)/I）。
 	 *
 	 * 于是：下旋球接触点相对台面「向前滑」→ 摩擦力向后 → 球被搓回来（会往回跳）；
-	 *       上旋球接触点「向后滑」→ 摩擦力向前 → 球加速前冲、弹得很低（前冲弧圈）。
-	 *       侧旋球撞墙 → 产生竖直方向的搓动（侧拐球弹起后会上下乱窜）。
+	 *       上旋球接触点「向后滑」→ 摩擦力向前 → 球加速前冲、弹得很低（前冲弧圈）；
+	 *       侧旋球（轴朝行进方向倾斜）撞地 → 产生侧向搓动，球落地后侧拐。
+	 *
+	 * @param surface 碰撞面材质，决定 e 与 μ。球台 e=0.90 弹得高，草地 e=0.75 一般，球网 e=0.22 吃球。
 	 */
-	public static BounceResult bounce(Vec3d velocity, Vec3d spin, Vec3d surfaceNormal) {
+	public static BounceResult bounce(Vec3d velocity, Vec3d spin, Vec3d surfaceNormal, Surface surface) {
 		Vec3d n = surfaceNormal.normalize();
 		double normalSpeed = velocity.dotProduct(n);
 		if (normalSpeed > 0.0) {
@@ -113,7 +127,7 @@ public final class PingPongPhysics {
 		}
 
 		// --- 1. 法向冲量 ---
-		double normalImpulse = -(1.0 + RESTITUTION) * normalSpeed * MASS;
+		double normalImpulse = -(1.0 + surface.restitution()) * normalSpeed * MASS;
 		Vec3d newVelocity = velocity.add(n.multiply(normalImpulse / MASS));
 
 		// --- 2. 接触点速度（球心速度 + 自旋带来的线速度） ---
@@ -128,7 +142,7 @@ public final class PingPongPhysics {
 			Vec3d tangentDir = contactTangent.multiply(-1.0 / slipSpeed); // 摩擦方向：反向于滑动
 			// 恰好让接触点停止滑动所需冲量：|u_t| / (1/m + r²/I)
 			double stoppingImpulse = slipSpeed / (1.0 / MASS + (BALL_RADIUS * BALL_RADIUS) / INERTIA);
-			double tangentImpulse = Math.min(FRICTION * Math.abs(normalImpulse), stoppingImpulse);
+			double tangentImpulse = Math.min(surface.friction() * Math.abs(normalImpulse), stoppingImpulse);
 			Vec3d impulse = tangentDir.multiply(tangentImpulse);
 
 			// --- 4. 冲量作用于线速度与角速度 ---
@@ -140,8 +154,12 @@ public final class PingPongPhysics {
 		return new BounceResult(newVelocity, newSpin);
 	}
 
-	/** 判断速度是否小到可以视为静止（格/tick）。 */
+	/**
+	 * 判断速度是否小到可以视为静止（格/tick）。
+	 * 取 0.03：球贴地时每个 tick 会被重力推 0.03、再被 e 反弹回 0.022，
+	 * 阈值低于它就永远判定不了「静止」，球会在 0↔0.022 之间无休止抖动（实测确认）。
+	 */
 	public static boolean isNearlyStill(Vec3d velocity) {
-		return velocity.lengthSquared() < 4.0e-4;
+		return velocity.lengthSquared() < 9.0e-4;
 	}
 }

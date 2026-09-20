@@ -1,0 +1,10 @@
+{
+	"variants": {
+		"along_x=true": {
+			"model": "pingpong:block/pingpong_table_x"
+		},
+		"along_x=false": {
+			"model": "pingpong:block/pingpong_table_z"
+		}
+	}
+}

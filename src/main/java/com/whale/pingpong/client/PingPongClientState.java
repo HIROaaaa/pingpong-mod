@@ -11,8 +11,12 @@ import net.minecraft.util.math.MathHelper;
  */
 public final class PingPongClientState {
 
-	/** 滚轮每一格改变多少角度比例 */
-	public static final double SCROLL_STEP = 0.1;
+	/**
+	 * 滚轮每一格改变多少角度比例。
+	 * 取 0.25：滚 4 格到满值。之前是 0.1（要滚 10 格），
+	 * 用户实测说「旋转没有任何体现」，有一大半原因就是这个步长太小、根本摸不到满自旋。
+	 */
+	public static final double SCROLL_STEP = 0.25;
 	/** 挥拍动画持续多少 tick（仅用于 HUD 提示） */
 	private static final int SWING_TICKS = 8;
 
