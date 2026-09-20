@@ -259,3 +259,14 @@ gradlew.bat runServer
 | 1.0.0 | `v1.0.0` | 一期初版：球拍 + 球实体 + 马格努斯物理 + 服务端权威 |
 | 1.1.0 | `v1.1.0` | 二期：修弹跳与侧旋两个真 bug、球拍 3D 模型、蓝色单方块球台 |
 
+也可以一条命令发版（自动从 `CHANGELOG.md` 抽该版正文并上传 jar）：
+
+```bat
+pwsh -ExecutionPolicy Bypass -File tools/publish_release.ps1 -Tag v1.2.0 -Jar build/libs/pingpong-1.2.0.jar
+```
+
+> 本机 PowerShell 执行策略禁止直接运行 `.ps1`，所以必须带 `-ExecutionPolicy Bypass`。
+> 脚本从 git 凭据管理器读 token（本机已存），不落盘也不打印。
+> 注意本机 GitHub 走 Steam++ 加速：HTTPS 可用、SSH 22 端口不通，所以 origin 用 HTTPS。
+
+
