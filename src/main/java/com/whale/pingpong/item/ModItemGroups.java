@@ -1,12 +1,10 @@
 package com.whale.pingpong.item;
 
-import com.whale.pingpong.PingPongMod;
 import com.whale.pingpong.block.ModBlocks;
+import com.whale.pingpong.util.Registrar;
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
 import net.minecraft.text.Text;
 
 /**
@@ -23,9 +21,8 @@ import net.minecraft.text.Text;
 public final class ModItemGroups {
 
 	/** 页签本体。所有物品按「球拍 → 球 → 球台」的顺序摆放。 */
-	public static final ItemGroup PINGPONG = Registry.register(
-			Registries.ITEM_GROUP,
-			PingPongMod.id("pingpong"),
+	public static final ItemGroup PINGPONG = Registrar.itemGroup(
+			"pingpong",
 			FabricItemGroup.builder()
 					.icon(() -> new ItemStack(ModItems.PINGPONG_PADDLE))
 					.displayName(Text.translatable("itemGroup.pingpong.pingpong"))
