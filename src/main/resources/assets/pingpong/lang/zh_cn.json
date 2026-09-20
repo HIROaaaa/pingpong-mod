@@ -1,0 +1,14 @@
+{
+	"item.pingpong.pingpong_paddle": "乒乓球拍",
+	"item.pingpong.pingpong_ball": "乒乓球",
+	"entity.pingpong.pingpong_ball": "乒乓球",
+	"hud.pingpong.flat": "平拍",
+	"hud.pingpong.topspin": "上旋",
+	"hud.pingpong.backspin": "下旋",
+	"hud.pingpong.center": "居中",
+	"hud.pingpong.left": "左偏",
+	"hud.pingpong.right": "右偏",
+	"hud.pingpong.status": "球拍：%s %s   侧偏：%s %s",
+	"hud.pingpong.hint": "滚轮调俯仰 | Alt+滚轮调侧偏 | 潜行+滚轮切物品栏",
+	"message.pingpong.cleared": "已回收 %s 颗乒乓球"
+}

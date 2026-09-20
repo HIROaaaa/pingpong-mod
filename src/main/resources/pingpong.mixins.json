@@ -1,0 +1,15 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"package": "com.whale.pingpong.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [],
+	"client": [
+		"MinecraftClientMixin",
+		"MouseMixin",
+		"HeldItemRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

@@ -1,0 +1,14 @@
+{
+	"item.pingpong.pingpong_paddle": "Ping Pong Paddle",
+	"item.pingpong.pingpong_ball": "Ping Pong Ball",
+	"entity.pingpong.pingpong_ball": "Ping Pong Ball",
+	"hud.pingpong.flat": "Flat",
+	"hud.pingpong.topspin": "Topspin",
+	"hud.pingpong.backspin": "Backspin",
+	"hud.pingpong.center": "Center",
+	"hud.pingpong.left": "Left",
+	"hud.pingpong.right": "Right",
+	"hud.pingpong.status": "Paddle: %s %s   Side: %s %s",
+	"hud.pingpong.hint": "Scroll: tilt | Alt+Scroll: side | Sneak+Scroll: hotbar",
+	"message.pingpong.cleared": "Recovered %s ping pong ball(s)"
+}

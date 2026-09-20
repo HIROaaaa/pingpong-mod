@@ -1,0 +1,19 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"pattern": [
+		"PPP",
+		" S ",
+		" S "
+	],
+	"key": {
+		"P": {
+			"tag": "minecraft:planks"
+		},
+		"S": {
+			"item": "minecraft:stick"
+		}
+	},
+	"result": {
+		"item": "pingpong:pingpong_paddle"
+	}
+}

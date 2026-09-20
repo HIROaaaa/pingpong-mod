@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "pingpong",
+	"version": "${version}",
+	"name": "Ping Pong",
+	"description": "Minecraft 乒乓球：球拍物品 + 服务端权威物理的乒乓球实体（马格努斯效应、上旋/下旋/侧旋）。",
+	"authors": [
+		"whale"
+	],
+	"contact": {},
+	"license": "MIT",
+	"icon": "assets/pingpong/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.whale.pingpong.PingPongMod"
+		],
+		"client": [
+			"com.whale.pingpong.client.PingPongClient"
+		]
+	},
+	"mixins": [
+		"pingpong.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"fabric-api": "*",
+		"minecraft": "~1.20.1",
+		"java": ">=17"
+	}
+}
