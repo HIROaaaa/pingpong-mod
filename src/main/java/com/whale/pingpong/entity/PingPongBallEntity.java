@@ -4,8 +4,10 @@ import com.whale.pingpong.PingPongMod;
 import com.whale.pingpong.block.ModBlocks;
 import com.whale.pingpong.block.PingPongTableBlock;
 import com.whale.pingpong.net.ModNetworking;
+import com.whale.pingpong.physics.PingPongContact;
 import com.whale.pingpong.physics.PingPongPhysics;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import com.whale.pingpong.util.TableGeometry;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
@@ -114,8 +116,18 @@ public class PingPongBallEntity extends Entity {
 	 * 两者都在对面台面内，且上旋球落台后**前冲**、下旋球落台后**回缩**。
 	 */
 	public static final double PADDLE_ELEVATION_MAX_DEGREES = 12.0;
-	/** 玩家视角俯仰还能额外影响多少度（只保留手感，弧线主体由基准曲线保证打得上台） */
+	/**
+	 * 玩家视角俯仰还能额外影响多少度（只保留手感，弧线主体由基准曲线保证打得上台）
+	 */
 	public static final double AIM_PITCH_WEIGHT = 0.25;
+	/**
+	 * 玩家用滚轮最多能把拍面角调整多少度（M3 起）。
+	 * 击球类型自带基准角（攻球 52°、拉球 16°、搓球 30°、削球 37°），滚轮只做**微调**，
+	 * 所以给 ±12° 而不是二期的 ±26° —— 幅度再大就把接触模型的标定打乱了。
+	 */
+	public static final double PLAYER_TILT_MAX_DEGREES = 12.0;
+	/** 玩家侧偏最多让挥拍方向偏多少度（Alt+滚轮） */
+	public static final double PLAYER_SIDE_MAX_DEGREES = 10.0;
 	/**
 	 * 球台台面的世界高度（格）。与 block/PingPongTableBlock 的碰撞箱一致：
 	 * 台面在方块内 0.75 处、方块放在地面上 → 世界高度约 0.76。
@@ -592,6 +604,21 @@ public class PingPongBallEntity extends Entity {
 	// ==================================================================
 
 	/**
+	 * 把自旋向量投影成「上旋量」（沿 topAxis = up × 前进方向 的分量，正 = 上旋）。
+	 * 夹紧试算只需要知道球是上旋还是下旋、有多强，横向分量对纵向落点影响很小。
+	 */
+	private static double calculateTopspin(Vec3d spin, Vec3d forward) {
+		Vec3d flat = new Vec3d(forward.x, 0.0, forward.z);
+		if (flat.lengthSquared() < 1.0e-8) {
+			return 0.0;
+		}
+		flat = flat.normalize();
+		Vec3d topspinAxis = new Vec3d(0.0, 1.0, 0.0).crossProduct(flat).normalize();
+		// 上旋 = 自旋沿 -topspinAxis（与 hitByPaddle 里 topspinAxis.multiply(-t) 的约定一致）
+		return -spin.dotProduct(topspinAxis);
+	}
+
+	/**
 	 * 把起跳仰角夹到「这个速度下物理上打得过网」的范围里。
 	 *
 	 * 【为什么需要】击球点只比台面高 0.23 格，球网却在 1.97 格外高出 0.15 格。
@@ -686,7 +713,8 @@ public class PingPongBallEntity extends Entity {
 	 * @param hand     正手 / 反手：决定出球的侧向分量与轻微自旋差异（需求 4）
 	 * @return 是否真的打到
 	 */
-	public boolean hitByPaddle(ServerPlayerEntity player, double tilt, double sideTilt, double power, PlayerHand hand) {
+	public boolean hitByPaddle(ServerPlayerEntity player, double tilt, double sideTilt, double power,
+							   PlayerHand hand, StrokeType strokeType) {
 		if (this.hitCooldown > 0) {
 			return false;
 		}
@@ -695,76 +723,62 @@ public class PingPongBallEntity extends Entity {
 		double s = MathHelper.clamp(sideTilt, -1.0, 1.0);
 		double hitPower = MathHelper.clamp(power, 0.0, 1.0);
 
-		// --- 1. 出球方向：水平朝向 + 起跳仰角 ---
+		// --- 1. 出球方向与接触（M3：改用真实接触模型）---
 		// 有球台时主要朝「球台对面」那一侧（跟球视角下视线锁在球上也能把球打回去，需求 6），
 		// 附近没球台就退回「按视线」，保持自由练习的手感。
 		Vec3d outward = TableGeometry.outward(this.getWorld(), player.getPos());
-		Vec3d horizontal = TableGeometry.hitDirection(player.getRotationVec(1.0F), outward);
+		Vec3d forward = TableGeometry.hitDirection(player.getRotationVec(1.0F), outward);
 
-		// 起跳仰角 = 基准曲线（力度决定，保证打得上台）+ 拍面（后仰抬高 / 前倾压低）+ 玩家俯仰的少量修正。
-		// 之后再过一遍「物理可行性夹紧」：这个速度下任何仰角都过不了网/一定出台时，夹到能过网的边界上。
-		double baseElevation = LAUNCH_BASE_SLOW_DEGREES
-				+ (LAUNCH_BASE_FAST_DEGREES - LAUNCH_BASE_SLOW_DEGREES) * hitPower;
-		double elevationDegrees = baseElevation
-				- t * PADDLE_ELEVATION_MAX_DEGREES
-				+ player.getPitch() * AIM_PITCH_WEIGHT;
-		double elevationRad = Math.toRadians(elevationDegrees);
+		// 击球类型由服务端按「哪个键 + 蓄力大小」选出（见 ModNetworking.swing），
+		// 搓/削/弧圈/攻球各自的拍面角与挥拍速度都在 StrokeType 里标定过。
+		StrokeType stroke = strokeType == null ? StrokeType.DRIVE_FOREHAND : strokeType;
+		stroke = stroke.flipHandIf(hand == PlayerHand.BACKHAND);
+		StrokeType.Basis basis = StrokeType.Basis.of(forward);
 
-		// 正反手各带一点侧向分量：正手扫出去略偏右，反手推出去略偏左（真实拍形差异）
-		double handYaw = hand == PlayerHand.FOREHAND ? 3.5 : -3.5;
-		double sideDegrees = s * MAX_TILT_DEGREES * 0.85 + handYaw;
-		double sideRad = Math.toRadians(sideDegrees);
+		// 玩家用滚轮微调拍面角（±12°），视线俯仰也带一点点
+		double tiltOffset = -t * PLAYER_TILT_MAX_DEGREES + player.getPitch() * AIM_PITCH_WEIGHT;
+		Vec3d normal = stroke.worldNormal(basis, tiltOffset);
+		double sideDegrees = s * PLAYER_SIDE_MAX_DEGREES + (hand == PlayerHand.FOREHAND ? 3.5 : -3.5);
+		Vec3d swing = stroke.worldSwing(basis, sideDegrees);
 
-		Vec3d direction = new Vec3d(
-				horizontal.x * Math.cos(sideRad) - horizontal.z * Math.sin(sideRad),
-				Math.sin(elevationRad),
-				horizontal.x * Math.sin(sideRad) + horizontal.z * Math.cos(sideRad)
-		).normalize();
+		Vec3d incomingVelocity = this.physicsVelocity;
+		Vec3d incomingSpin = this.getSpin();
+		PingPongContact.Result contactResult = PingPongContact.hit(
+				incomingVelocity, incomingSpin,
+				PingPongPhysics.BALL_RADIUS, PingPongPhysics.MASS, PingPongPhysics.INERTIA,
+				normal, swing, stroke.swingSpeed, hitPower, stroke.surface);
 
-		// --- 2. 出球速度：基础拍速 + 蓄力力度 + 借用来球动能 + 自旋耦合（上旋更快、下旋更慢） ---
-		double incoming = this.physicsVelocity.length();
-		double spinCoupling = 1.0 + t * SPIN_SPEED_COUPLING;
-		double speed = MathHelper.clamp(
-				(BASE_HIT_SPEED + CHARGE_SPEED_BONUS * hitPower + HIT_SPEED_INHERIT * incoming) * spinCoupling,
-				MIN_HIT_SPEED, MAX_HIT_SPEED);
-
-		// 可行性夹紧：见 clampElevation 的注释。夹完再重算一次方向。
-		// 【为什么要把上旋量传进去】上旋的马格努斯力是"往下压"的，强上旋 + 压平的拍面
-		// 会让球在过网前就掉下去（脚本实测：满力度强上旋时净空 −0.22 格 = 下网）。
-		// 夹紧时带上同一支自旋量，才能算出真正可行的仰角窗口。
-		double plannedTopspin = t * MAX_SPIN * (0.35 + 0.65 * hitPower);
-		double safeElevation = clampElevation(speed, Math.toRadians(elevationDegrees), plannedTopspin);
-		if (Math.abs(safeElevation - elevationRad) > 1.0e-4) {
-			Vec3d flatDir = new Vec3d(direction.x, 0.0, direction.z).normalize();
-			direction = new Vec3d(
-					flatDir.x * Math.cos(safeElevation),
-					Math.sin(safeElevation),
-					flatDir.z * Math.cos(safeElevation)).normalize();
+		// --- 2. 可行性夹紧：保证这一拍能过网落台 ---
+		// 【为什么必须有】接触模型是"有单位的真物理"，但本 Mod 的球台只有 2.74 格，
+		// 能过网又不出台的出球角度窗口很窄。标定只能保证"某个基准来球 + 中等力度"落点合适，
+		// 来球速度/自旋一变（比如对手拉过来的强上旋）就会下网或出台。
+		// 这里只调整**出球方向**（保留接触模型算出的自旋与速度大小），
+		// 把仰角夹进「这个速度 + 这支自旋下真正可行」的窗口：
+		//   - 强上旋 + 压平 → 夹高一点，避免过网前就被马格努斯压下去；
+		//   - 高球速 + 抬太高 → 夹低一点，避免飞出台。
+		double topspinForClamp = calculateTopspin(contactResult.spin(), basis.forward());
+		double outgoingSpeed = contactResult.velocity().length();
+		double elevationRad = Math.toRadians(LAUNCH_BASE_SLOW_DEGREES
+				+ (LAUNCH_BASE_FAST_DEGREES - LAUNCH_BASE_SLOW_DEGREES) * hitPower);
+		if (outgoingSpeed > 1.0e-4) {
+			double safeElevation = clampElevation(outgoingSpeed, elevationRad, topspinForClamp);
+			if (Math.abs(safeElevation - elevationRad) > 1.0e-4) {
+				Vec3d flatDir = new Vec3d(basis.forward().x, 0.0, basis.forward().z).normalize();
+				Vec3d clamped = new Vec3d(
+						flatDir.x * Math.cos(safeElevation),
+						Math.sin(safeElevation),
+						flatDir.z * Math.cos(safeElevation)).normalize();
+				contactResult = new PingPongContact.Result(
+						clamped.multiply(outgoingSpeed), contactResult.spin(),
+						contactResult.slipSpeed(), contactResult.slipping(), contactResult.normalImpulse());
+			}
 		}
-		this.setPhysicsVelocity(direction.multiply(speed));
 
-		// --- 3. 自旋：力度越大转得越狠（现实里也是用力抽才转） ---
-		Vec3d flat = new Vec3d(direction.x, 0.0, direction.z);
-		flat = flat.lengthSquared() < 1.0e-6 ? new Vec3d(0.0, 0.0, 1.0) : flat.normalize();
-
-		// 上旋轴 = up × 水平出球方向（右手定则：球顶部向前转，马格努斯力向下 → 弧线下扎）
-		Vec3d topspinAxis = new Vec3d(0.0, 1.0, 0.0).crossProduct(flat).normalize();
-		// 侧旋轴 = sin(θ)·up + cos(θ)·flat（朝行进方向倾斜 θ）。
-		// 【千万别写反】反过来写成 cos·up + sin·flat 会得到一个几乎纯竖直的轴，
-		// 而纯竖直轴在水平面上 ω×r ≡ 0 —— 落地永远不会侧拐（二期已踩过这个坑）。
-		// θ=60°：竖直分量 sin60°=0.87 负责飞行侧弯，行进分量 cos60°=0.5 负责落地侧拐（需求 4 两者都要）。
-		Vec3d sideAxis = new Vec3d(0.0, 1.0, 0.0).multiply(Math.sin(SIDE_AXIS_TILT))
-				.add(flat.multiply(Math.cos(SIDE_AXIS_TILT)))
-				.normalize();
-
-		// 【符号 bug 修复】tilt > 0 = 拍面前倾、压着打 = **上旋**：轴取 -topspinAxis，
-		// 这样 ω×v 指向下（球下扎、落台前冲）；tilt < 0 = 后仰、兜球 = 下旋，球发飘。
-		// 旧代码写成 +t，等于把上旋与下旋整体调反 —— 用户报的
-		//「上旋球和下旋球速度都一样 / 旋转没有任何体现」有一半来自这里
-		//（另一半是客户端不跑马格努斯，见 ModNetworking 的运动同步）。
-		double spinScale = MAX_SPIN * (0.35 + 0.65 * hitPower);
-		Vec3d spin = topspinAxis.multiply(-t * spinScale).add(sideAxis.multiply(s * spinScale));
-		this.setSpin(spin);
+		this.setPhysicsVelocity(contactResult.velocity());
+		this.setSpin(PingPongPhysics.clampSpin(contactResult.spin()));
+		Vec3d direction = contactResult.velocity().lengthSquared() < 1.0e-9
+				? forward.normalize()
+				: contactResult.velocity().normalize();
 
 		// --- 4. 收尾：冷却、位置微调、同步、特效 ---
 		this.hitCooldown = HIT_COOLDOWN_TICKS;

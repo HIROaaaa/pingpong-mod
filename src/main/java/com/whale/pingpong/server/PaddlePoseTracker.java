@@ -1,6 +1,7 @@
 package com.whale.pingpong.server;
 
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -26,6 +27,8 @@ public final class PaddlePoseTracker {
 		public PlayerHand hand = PlayerHand.FOREHAND;
 		public float tilt;
 		public float sideTilt;
+		/** 最近一次击球的类型（HUD 显示与第三人称动作都要用它） */
+		public StrokeType lastStroke = StrokeType.DRIVE_FOREHAND;
 		/** 挥拍动画结束时间（世界 tick），用于第三人称看到别人挥拍 */
 		public long swingUntil;
 		public float swingPower;

@@ -2,6 +2,7 @@ package com.whale.pingpong.client;
 
 import com.whale.pingpong.item.ModItems;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.MathHelper;
@@ -139,6 +140,19 @@ public final class PingPongClientState {
 	/** 开始一次挥拍（用于 HUD 与自定义动画）。 */
 	public static void startSwing() {
 		swingTicks = SWING_TICKS;
+	}
+
+	/** 最近一次真正打出去的击球类型（第一人称动作要按它选）。 */
+	private static StrokeType lastStroke = StrokeType.DRIVE_FOREHAND;
+
+	public static StrokeType lastStroke() {
+		return lastStroke;
+	}
+
+	public static void setLastStroke(StrokeType stroke) {
+		if (stroke != null) {
+			lastStroke = stroke;
+		}
 	}
 
 	/** 切换正反手，返回切换后的手型。拍形同时回到该手型的准备姿势（需求 4.2）。 */

@@ -2,9 +2,11 @@ package com.whale.pingpong.client;
 
 import com.whale.pingpong.block.ModBlocks;
 import com.whale.pingpong.entity.ModEntities;
+import com.whale.pingpong.item.ModItems;
 import com.whale.pingpong.item.PingPongPaddleItem;
 import com.whale.pingpong.net.ModNetworking;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -35,6 +37,8 @@ public class PingPongClient implements ClientModInitializer {
 
 	/** 左键是否按着（用来识别「松手」那一刻） */
 	private static boolean attackKeyWasDown;
+	/** 右键是否按着（搓/削，需求 17） */
+	private static boolean useKeyWasDown;
 	/** 松手后的挥拍冷却，避免连点刷包（服务端还会再限流一次） */
 	private static int swingCooldown;
 	/** 拍形没被服务端确认的持续 tick 数，用来决定要不要重发 */
@@ -58,6 +62,7 @@ public class PingPongClient implements ClientModInitializer {
 			PingPongClientState.reset();
 			PaddlePoseCache.clear();
 			attackKeyWasDown = false;
+			useKeyWasDown = false;
 			swingCooldown = 0;
 			outOfSyncTicks = 0;
 		});
@@ -84,6 +89,7 @@ public class PingPongClient implements ClientModInitializer {
 
 		if (client.player == null) {
 			attackKeyWasDown = false;
+			useKeyWasDown = false;
 			return;
 		}
 
@@ -112,29 +118,71 @@ public class PingPongClient implements ClientModInitializer {
 	}
 
 	/**
-	 * 左键松手 → 一次挥拍，力度来自蓄力时长。
-	 * 按住时不重复发包，松手才打出去，这样「点一下」和「按住蓄力」的手感才分得开。
+	 * 松手 → 一次挥拍，力度来自蓄力时长。按住时不重复发包，松手才打出去，
+	 * 这样「点一下」和「按住蓄力」的手感才分得开。
+	 *
+	 * 【左右键各一套（需求 17/20b）】
+	 * - 左键：蓄力大 → 拉弧圈，否则 → 攻球
+	 * - 右键：蓄力 ≥ 57% → 削球，否则 → 搓球
+	 * 选择规则在服务端复算一遍（{@link StrokeType#select}），客户端这份只用于 HUD 预览与发包。
 	 */
 	private static void handleSwing(MinecraftClient client) {
 		boolean holdingPaddle = client.player.getMainHandStack().getItem() instanceof PingPongPaddleItem;
-		boolean attackDown = client.options.attackKey.isPressed() && holdingPaddle && client.currentScreen == null;
+		boolean noScreen = client.currentScreen == null;
+		boolean attackDown = client.options.attackKey.isPressed() && holdingPaddle && noScreen;
+		// 右键：手里拿球拍、副手没举着球时才是"搓/削"；举着球的时候右键归抛球（需求 16）
+		boolean holdingBallOffhand = client.player.getOffHandStack().isOf(ModItems.PINGPONG_BALL);
+		boolean useDown = client.options.useKey.isPressed() && holdingPaddle && noScreen
+				&& !holdingBallOffhand && !client.player.isSneaking();
 
 		if (swingCooldown > 0) {
 			swingCooldown--;
 		}
 
+		// --- 左键：攻球 / 弧圈 ---
 		if (attackDown && !attackKeyWasDown && swingCooldown <= 0) {
-			// 已经开始蓄力（mixin 里调过 startCharge），这里只记状态
 			attackKeyWasDown = true;
 		} else if (!attackDown && attackKeyWasDown) {
 			attackKeyWasDown = false;
 			double power = PingPongClientState.endCharge();
+			PingPongClientState.setLastStroke(StrokeType.select(
+					PingPongClientState.hand() == PlayerHand.BACKHAND, false, power));
 			PingPongClientState.startSwing();
-			ModNetworking.sendSwing(power);
+			ModNetworking.sendSwing(power, false);
 			swingCooldown = 4;
 		} else if (!attackDown) {
 			attackKeyWasDown = false;
 		}
+
+		// --- 右键：搓球 / 削球 ---
+		if (useDown && !useKeyWasDown && swingCooldown <= 0) {
+			useKeyWasDown = true;
+		} else if (!useDown && useKeyWasDown) {
+			useKeyWasDown = false;
+			double power = PingPongClientState.endCharge();
+			PingPongClientState.setLastStroke(StrokeType.select(
+					PingPongClientState.hand() == PlayerHand.BACKHAND, true, power));
+			PingPongClientState.startSwing();
+			ModNetworking.sendSwing(power, true);
+			swingCooldown = 4;
+		} else if (!useDown) {
+			useKeyWasDown = false;
+		}
+	}
+
+	/** HUD 预览用：当前会打出哪一类击球（null = 没在蓄力）。 */
+	public static StrokeType previewStroke(MinecraftClient client) {
+		if (client.player == null) {
+			return null;
+		}
+		boolean backhand = PingPongClientState.hand() == PlayerHand.BACKHAND;
+		if (attackKeyWasDown) {
+			return StrokeType.select(backhand, false, PingPongClientState.chargeRatio());
+		}
+		if (useKeyWasDown) {
+			return StrokeType.select(backhand, true, PingPongClientState.chargeRatio());
+		}
+		return null;
 	}
 
 	/**

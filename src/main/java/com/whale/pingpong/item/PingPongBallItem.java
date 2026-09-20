@@ -49,6 +49,18 @@ public class PingPongBallItem extends Item {
 		return 72000;
 	}
 
+	/**
+	 * 举球时的动作（需求 15/16：「发球时拿着乒乓球抛球的动作也要做出来」）。
+	 *
+	 * 用原版 {@code UseAction.BOW}：手臂会做出"举到身前再放开"的姿势 ——
+	 * 这正是抛球该有的样子，而且**不用写任何 mixin**（原版动画系统直接支持）。
+	 * 松手时 {@link #onStoppedUsing} 把球抛出去，动作与球离手在同一刻结束。
+	 */
+	@Override
+	public net.minecraft.util.UseAction getUseAction(ItemStack stack) {
+		return net.minecraft.util.UseAction.BOW;
+	}
+
 	@Override
 	public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
 		ItemStack stack = user.getStackInHand(hand);

@@ -23,6 +23,11 @@
 	"hud.pingpong.ballcam.on": "Ball-Cam: ON",
 	"hud.pingpong.ballcam.off": "Ball-Cam: OFF",
 	"hud.pingpong.toss_charge": "Toss power %d%%  (hold right-click to charge)",
+	"hud.pingpong.stroke": "Next: %s",
+	"stroke.pingpong.drive": "Drive",
+	"stroke.pingpong.loop": "Loop",
+	"stroke.pingpong.push": "Push",
+	"stroke.pingpong.chop": "Chop",
 	"hud.pingpong.scroll.tilt": "Paddle tilt %+d%%  (+ forward = topspin, - back = backspin)",
 	"hud.pingpong.scroll.side": "Paddle side %+d%%  (+ right, - left)",
 	"message.pingpong.cleared": "Recovered %s ping pong ball(s)"

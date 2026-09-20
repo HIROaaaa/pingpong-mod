@@ -1,22 +1,29 @@
 #!/usr/bin/env node
 /**
- * 出球手感 + 自旋行为的断言脚本（M1 标定版）。
+ * ⚠️ 已退役（M3 起）：本脚本验证的是 **M1 时代**的出球公式
+ *    speed = (BASE_HIT_SPEED + CHARGE_SPEED_BONUS×power) × 自旋耦合
+ * 而 M3 已经把出球计算换成**接触模型**（physics/PingPongContact.java）：
+ * 出球速度与自旋由「来球 + 拍面朝向 + 挥拍速度 + 胶皮摩擦」算出来，不再有"基础拍速 + 蓄力加成"这条公式。
+ * 所以本脚本现在测的是一个**不存在的公式**，它的输出没有验收意义。
  *
- * 【和旧版的区别】旧脚本把 Java 里的常数**手抄**成 JS 常量，二期改完阻力与速度公式后
- * 就再没同步过（DRAG_QUAD 还写着 0.020、BASE_HIT_SPEED 还是 0.85），等于在测另一个 mod。
- * 现在改成**直接从 PingPongPhysics.java / PingPongBallEntity.java 解析常量**，
- * 从根上消灭「两边不同步」这个坑。
+ * 现在该看的是：
+ *   - tools/contact_model_check.js   —— 接触模型的五组真实手感对照（需求 9/22）
+ *   - tools/calibrate_strokes2.js    —— 八种击球的拍面角/挥拍速度标定
+ *   - tools/sim_client_state.js      —— 客户端状态机
+ *   - tools/calibrate_hit_speed.js   —— M1 的仰角曲线（仍对"起跳仰角夹紧"有效）
  *
- * 场景几何（真实乒乓球台换算成格，见 docs/plan/v1.3-plan.md §0.1）：
- *   台面高 0.76，半场 1.37，全场 2.74；击球点在台面上方 0.29 格、距近端台缘 0.6 格。
- *   → 击球点到球网 1.97 格，到远端台缘 3.34 格。
- *   「打得上台」= 落点落在 1.97 ~ 3.34 格之间（第一落点在对方台面）。
- *
- * 运行：node tools/physics_sanity_check.js
- *      PINGPONG_TRACE=1 node tools/physics_sanity_check.js   # 额外打印轨迹
- * 退出码：0=全部通过；1=有断言失败（参数被改坏，别提交）
+ * 保留此文件仅为留痕与对照。为避免误导自动化流程，**恒以退出码 0 结束**。
  */
 'use strict';
+
+console.log('⚠️  本脚本已退役（M3 换成接触模型后，它验证的公式已不存在）。');
+console.log('   请看 tools/contact_model_check.js 与 tools/calibrate_strokes2.js。');
+process.exit(0);
+
+/* eslint-disable */
+// ---------------------------------------------------------------------------
+// 以下为 M1 时代的实现，保留作对照，不再执行。
+// ---------------------------------------------------------------------------
 
 const fs = require('node:fs');
 const path = require('node:path');

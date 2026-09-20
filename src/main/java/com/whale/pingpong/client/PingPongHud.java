@@ -3,6 +3,7 @@ package com.whale.pingpong.client;
 import com.whale.pingpong.item.ModItems;
 import com.whale.pingpong.item.PingPongBallItem;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -90,6 +91,17 @@ public final class PingPongHud {
 		// 蓄力条：左键按住时出现（需求 1）
 		if (PingPongClientState.isCharging()) {
 			drawPowerBar(context, client, centerX, barY + 9, PingPongClientState.chargeRatio());
+		}
+
+		// 第四行：这一拍会打出什么（需求 17/20b：右键蓄力过半变削球，玩家必须看得见）
+		StrokeType preview = PingPongClient.previewStroke(client);
+		if (preview != null) {
+			Text strokeText = Text.translatable("hud.pingpong.stroke",
+							Text.translatable(preview.translationKey))
+					.formatted(preview.isChop() ? Formatting.DARK_PURPLE
+							: preview.isPush() ? Formatting.AQUA
+							: preview.isLoop() ? Formatting.GOLD : Formatting.WHITE);
+			context.drawCenteredTextWithShadow(client.textRenderer, strokeText, centerX, barY + 18, 0xFFFFFF);
 		}
 	}
 

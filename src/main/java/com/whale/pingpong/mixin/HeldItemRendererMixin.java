@@ -2,9 +2,11 @@ package com.whale.pingpong.mixin;
 
 import com.whale.pingpong.client.PaddlePoseCache;
 import com.whale.pingpong.client.PingPongAnimations;
+import com.whale.pingpong.client.PingPongClient;
 import com.whale.pingpong.client.PingPongClientState;
 import com.whale.pingpong.item.ModItems;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -60,9 +62,12 @@ public class HeldItemRendererMixin {
 		float progress = PingPongClientState.isSwinging()
 				? PingPongClientState.swingProgress()
 				: swingFallback(swingProgress);
+		// 动作按「这一拍要打什么」选：蓄力中显示预览，否则用上一拍
+		StrokeType stroke = PingPongClient.previewStroke(MinecraftClient.getInstance());
 		PingPongAnimations.apply(matrices,
 				PingPongClientState.tilt(), PingPongClientState.sideTilt(),
-				progress, PingPongClientState.hand());
+				progress, PingPongClientState.hand(),
+				stroke != null ? stroke : PingPongClientState.lastStroke());
 	}
 
 	@Inject(method = "renderFirstPersonItem", at = @At("RETURN"))
@@ -101,6 +106,7 @@ public class HeldItemRendererMixin {
 		double sideTilt;
 		PlayerHand hand;
 		float progress;
+		StrokeType stroke;
 
 		ClientPlayerEntity self = MinecraftClient.getInstance().player;
 		if (entity == self) {
@@ -109,18 +115,20 @@ public class HeldItemRendererMixin {
 			sideTilt = PingPongClientState.sideTilt();
 			hand = PingPongClientState.hand();
 			progress = PingPongClientState.isSwinging() ? PingPongClientState.swingProgress() : 0.0F;
+			stroke = PingPongClientState.lastStroke();
 		} else {
-			// 别人：用服务端广播来的姿态（这是「能看出对方拍形」的关键）
+			// 别人：用服务端广播来的姿态（这是「能看出对方拍形与动作」的关键）
 			PaddlePoseCache.Pose pose = PaddlePoseCache.get(entity.getUuid());
 			tilt = pose.tilt;
 			sideTilt = pose.sideTilt;
 			hand = pose.hand;
+			stroke = pose.stroke;
 			progress = pose.swingTicks > 0
 					? 1.0F - (float) pose.swingTicks / PingPongClientState.SWING_TICKS
 					: 0.0F;
 		}
 
-		PingPongAnimations.apply(matrices, tilt, sideTilt, progress, hand);
+		PingPongAnimations.apply(matrices, tilt, sideTilt, progress, hand, stroke);
 	}
 
 	@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"

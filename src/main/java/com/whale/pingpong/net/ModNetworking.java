@@ -5,6 +5,7 @@ import com.whale.pingpong.entity.PingPongBallEntity;
 import com.whale.pingpong.item.PingPongPaddleItem;
 import com.whale.pingpong.server.PaddlePoseTracker;
 import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.StrokeType;
 import com.whale.pingpong.util.TableGeometry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -18,6 +19,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
@@ -89,7 +91,9 @@ public final class ModNetworking {
 			byte handId = buf.readByte();
 			float swingPower = buf.readFloat();
 			boolean ballCam = buf.readBoolean();
-			client.execute(() -> applyPose(uuid, tilt, sideTilt, PlayerHand.byId(handId), swingPower, ballCam));
+			byte strokeId = buf.readByte();
+			client.execute(() -> applyPose(uuid, tilt, sideTilt, PlayerHand.byId(handId), swingPower, ballCam,
+					StrokeType.byId(strokeId)));
 		});
 
 		ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {
@@ -122,11 +126,25 @@ public final class ModNetworking {
 	/** 左键松手：一次挥拍，带上蓄力力度 0~1（需求 1）。 */
 	@Environment(EnvType.CLIENT)
 	public static void sendSwing(double power) {
+		sendSwing(power, false);
+	}
+
+	/**
+	 * 松手挥拍。
+	 *
+	 * @param power       蓄力力度 0~1
+	 * @param rightButton true = 右键（搓球/削球），false = 左键（攻球/弧圈）
+	 */
+	@Environment(EnvType.CLIENT)
+	public static void sendSwing(double power, boolean rightButton) {
 		PacketByteBuf buf = PacketByteBufs.create();
 		buf.writeByte(ACTION_SWING);
 		buf.writeFloat((float) power);
 		buf.writeFloat(0.0F);
-		buf.writeByte((byte) PingPongClientStateHand());
+		// 手型与"哪个键"都用现有的字段传：handId 低位当手型，最高位当右键标记
+		int handId = PingPongClientStateHand();
+		int packed = (handId & 0x7F) | (rightButton ? 0x80 : 0);
+		buf.writeByte((byte) packed);
 		ClientPlayNetworking.send(ACTION_CHANNEL, buf);
 	}
 
@@ -175,6 +193,8 @@ public final class ModNetworking {
 		buf.writeByte((byte) state.hand.ordinal());
 		buf.writeFloat(state.swingPower);
 		buf.writeBoolean(state.ballCam);
+		// 击球类型：第三人称要按它选动作（搓/削/弧圈/攻球各一套）
+		buf.writeByte((byte) state.lastStroke.ordinal());
 		ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);
 	}
 
@@ -293,13 +313,18 @@ public final class ModNetworking {
 		LAST_SWING.put(player.getUuid(), now);
 
 		// 手型以服务端记录为准（客户端可以伪造包）
-		PlayerHand hand = PlayerHand.byId(handId);
+		PlayerHand hand = PlayerHand.byId(handId & 0x7F);
 		if (hand != state.hand) {
 			// 允许一次「随挥拍顺带切手」，但不接受与任何已知状态都不符的乱填值
 			hand = state.hand;
 		}
 
+		// 哪个键 = 哪一类击球（需求 17/20b）：
+		//   左键：蓄力大 → 拉弧圈；否则 → 攻球
+		//   右键：蓄力 ≥ 57% → 削球；否则 → 搓球
+		boolean rightButton = (handId & 0x80) != 0;
 		float power = clampPose(charge);
+		StrokeType stroke = StrokeType.select(hand == PlayerHand.BACKHAND, rightButton, power);
 
 		// 击球点：由「球台朝向 + 玩家站在球台哪一边」决定，正反手各在一侧（需求 4 / 6）
 		Vec3d eyePos = player.getEyePos();
@@ -313,18 +338,21 @@ public final class ModNetworking {
 		for (PingPongBallEntity ball : player.getWorld()
 				.getEntitiesByClass(PingPongBallEntity.class, searchBox, ball -> true)) {
 			double distance = ball.getPos().squaredDistanceTo(paddlePos);
-			if (distance < bestDistance) {
+			if (distance < bestDistance && hasLineOfSight(player, ball)) {
 				bestDistance = distance;
 				target = ball;
 			}
 		}
 
-		if (target != null && target.hitByPaddle(player, state.tilt, state.sideTilt, power, hand)) {
-			// 命中：让所有人（包括自己）看到挥臂动作。视角不受影响，只有手臂/手持物在动。
-			player.swingHand(Hand.MAIN_HAND);
-			state.swingUntil = now + 8;
-			state.swingPower = 0.35F + 0.65F * power;
-			PaddlePoseTracker.broadcast(player.getServer(), player, false);
+		// 动作**无条件播放**（需求 20a：碰不到球也要做动作），只有球是否响应不同。
+		state.lastStroke = stroke;
+		state.swingUntil = now + 8;
+		state.swingPower = 0.35F + 0.65F * power;
+		player.swingHand(Hand.MAIN_HAND);
+		PaddlePoseTracker.broadcast(player.getServer(), player, false);
+
+		if (target != null && target.hitByPaddle(player, state.tilt, state.sideTilt, power, hand, stroke)) {
+			// 命中：球的反应由接触模型在 hitByPaddle 里算完（速度、自旋、可行性夹紧）
 		} else {
 			// 空挥：只有声音
 			player.getWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -340,14 +368,37 @@ public final class ModNetworking {
 		return Math.max(-1.0F, Math.min(1.0F, value));
 	}
 
+	/**
+	 * 眼睛到球之间有没有被实心方块挡住（需求 20a「先算好能不能碰到球」的一部分）。
+	 *
+	 * 【为什么需要】球拍能"穿墙击球"很出戏：玩家隔着球台下面或者墙都能把球打回来。
+	 * 这里从眼睛向球心采样 6 个点，任意一点落在碰撞形状非空的方块里就算被挡住 —— 此时**不碰球**，
+	 * 但动作照常播放（动作在 swing() 里是无条件广播的）。
+	 */
+	private static boolean hasLineOfSight(ServerPlayerEntity player, PingPongBallEntity ball) {
+		Vec3d eye = player.getEyePos();
+		Vec3d target = ball.getPos();
+		for (int i = 1; i <= 6; i++) {
+			double t = i / 7.0;
+			BlockPos pos = BlockPos.ofFloored(
+					eye.x + (target.x - eye.x) * t,
+					eye.y + (target.y - eye.y) * t,
+					eye.z + (target.z - eye.z) * t);
+			if (!player.getWorld().getBlockState(pos).getCollisionShape(player.getWorld(), pos).isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	// ==================================================================
 	// 客户端应用下行数据
 	// ==================================================================
 
 	@Environment(EnvType.CLIENT)
 	private static void applyPose(UUID uuid, float tilt, float sideTilt, PlayerHand hand,
-								  float swingPower, boolean ballCam) {
-		com.whale.pingpong.client.PaddlePoseCache.update(uuid, tilt, sideTilt, hand, swingPower, ballCam);
+								  float swingPower, boolean ballCam, StrokeType stroke) {
+		com.whale.pingpong.client.PaddlePoseCache.update(uuid, tilt, sideTilt, hand, swingPower, ballCam, stroke);
 
 		net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
 		if (client.player != null && client.player.getUuid().equals(uuid)) {

@@ -23,6 +23,11 @@
 	"hud.pingpong.ballcam.on": "跟球视角：开启",
 	"hud.pingpong.ballcam.off": "跟球视角：关闭",
 	"hud.pingpong.toss_charge": "抛球力度 %d%%　（按住右键蓄力）",
+	"hud.pingpong.stroke": "下一拍：%s",
+	"stroke.pingpong.drive": "攻球",
+	"stroke.pingpong.loop": "拉弧圈",
+	"stroke.pingpong.push": "搓球",
+	"stroke.pingpong.chop": "削球",
 	"hud.pingpong.scroll.tilt": "拍面俯仰 %+d%%　（正=前倾=上旋，负=后仰=下旋）",
 	"hud.pingpong.scroll.side": "拍面侧偏 %+d%%　（正=右偏，负=左偏）",
 	"message.pingpong.cleared": "已回收 %s 颗乒乓球"

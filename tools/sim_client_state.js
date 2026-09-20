@@ -377,5 +377,37 @@ console.log('\n=== 场景 F：滚轮与滚轮之间夹着切槽位（模拟玩�
   check('反复切换 + 滚动，角度不被切槽位回滚', s.tilt, angle);
 }
 
-console.log(`\n===== 结果：${failures === 0 ? '全部通过（状态机没问题，问题在 MC 侧）' : failures + ' 项失败（状态机有 bug，见上）'} =====`);
+console.log('\n=== 场景 G：击球类型选择（镜像 StrokeType.select，需求 17/20b）===');
+{
+  const CHOP_THRESHOLD = 0.57;
+  const select = (backhand, rightButton, power) => {
+    const base = rightButton
+      ? (power >= CHOP_THRESHOLD ? 'CHOP' : 'PUSH')
+      : (power >= CHOP_THRESHOLD ? 'LOOP' : 'DRIVE');
+    return backhand ? base + '_BH' : base + '_FH';
+  };
+  const rows = [
+    [false, false, 0.2, 'DRIVE_FH', '左键轻点 = 攻球'],
+    [false, false, 0.8, 'LOOP_FH', '左键蓄满 = 拉弧圈'],
+    [false, true, 0.3, 'PUSH_FH', '右键轻点 = 搓球'],
+    [false, true, 0.7, 'CHOP_FH', '右键蓄力过半 = 削球'],
+    [true, false, 0.2, 'DRIVE_BH', '反手攻球'],
+    [true, true, 0.7, 'CHOP_BH', '反手削球'],
+  ];
+  let ok = true;
+  for (const [backhand, right, power, want, label] of rows) {
+    const got = select(backhand, right, power);
+    const pass = got === want;
+    if (!pass) ok = false;
+    console.log(`  ${pass ? 'ok  ' : 'FAIL'}  ${label}：期望 ${want}，实际 ${got}`);
+  }
+  if (!ok) failures++;
+  // 阈值边界：正好 0.57 应该算削球
+  const boundary = select(false, true, 0.57);
+  const boundaryOk = boundary === 'CHOP_FH';
+  if (!boundaryOk) failures++;
+  console.log(`  ${boundaryOk ? 'ok  ' : 'FAIL'}  阈值边界 0.57 → ${boundary}（应≥0.57 就是削球）`);
+}
+
+console.log(`\n===== 结果：${failures === 0 ? '全部通过 ✅' : failures + ' 项失败 ❌'} =====`);
 process.exit(failures === 0 ? 0 : 1);
