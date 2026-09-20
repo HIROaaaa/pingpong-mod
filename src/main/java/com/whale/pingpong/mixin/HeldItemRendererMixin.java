@@ -1,15 +1,20 @@
 package com.whale.pingpong.mixin;
 
+import com.whale.pingpong.client.PaddlePoseCache;
+import com.whale.pingpong.client.PingPongAnimations;
 import com.whale.pingpong.client.PingPongClientState;
 import com.whale.pingpong.item.ModItems;
+import com.whale.pingpong.util.PlayerHand;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.option.Perspective;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.HeldItemRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Hand;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.RotationAxis;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,12 +22,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 第一人称「独立挥拍」动画。
+ * 球拍姿态/挥拍动画的<b>渲染</b>注入。
  *
- * 原版挥拍动的是整条手臂，这里额外给球拍加一层绕手腕的旋转：
- * - 拍面俯仰（滚轮上/下）→ 绕 X 轴后仰 / 前倾
- * - 拍面侧偏（Alt+滚轮）→ 绕 Z 轴左右翻
- * - 挥拍进度 → 横向扫动 + 下压 + 前送
+ * 两条渲染路径都要管，否则就会出现用户报的现象 ——「别的视角看不出来球拍变动」：
+ * 1. {@code renderFirstPersonItem}：第一人称手持物，用本地实时状态（最跟手）；
+ * 2. {@code renderItem(LivingEntity, ...)}：第三人称/其他玩家，用服务端广播来的姿态缓存。
  *
  * 关键：这些矩阵只作用在手持物渲染上，玩家的摄像机（视角）一点都不会动。
  */
@@ -30,7 +34,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class HeldItemRendererMixin {
 
 	@Unique
-	private boolean pingpong$matrixPushed;
+	private boolean pingpong$firstPersonPushed;
+
+	@Unique
+	private boolean pingpong$thirdPersonPushed;
+
+	// ------------------------------------------------------------------
+	// 第一人称
+	// ------------------------------------------------------------------
 
 	@Inject(method = "renderFirstPersonItem", at = @At("HEAD"))
 	private void pingpong$beforeRenderFirstPersonItem(AbstractClientPlayerEntity player, float tickDelta,
@@ -43,21 +54,15 @@ public class HeldItemRendererMixin {
 		}
 
 		matrices.push();
-		this.pingpong$matrixPushed = true;
+		this.pingpong$firstPersonPushed = true;
 
-		// 挥拍进度：0 → 1 → 0 的摆动曲线
-		float swing = MathHelper.sin(MathHelper.sqrt(MathHelper.clamp(swingProgress, 0.0F, 1.0F)) * 3.1415927F);
-		float tiltDegrees = (float) (PingPongClientState.tilt() * 42.0);
-		float sideDegrees = (float) (PingPongClientState.sideTilt() * 36.0);
-
-		// 1. 常态拍面角度 + 挥拍时加大幅度
-		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(tiltDegrees * (0.45F + 0.55F * swing)));
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(sideDegrees * (0.45F + 0.55F * swing)));
-
-		// 2. 独立挥拍：手腕横向扫动 + 一点下压前送
-		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-28.0F * swing));
-		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-14.0F * swing));
-		matrices.translate(0.0F, -0.05F * swing, -0.06F * swing);
+		// 本地实时状态：滚轮/按键的回馈必须是零延迟的
+		float progress = PingPongClientState.isSwinging()
+				? PingPongClientState.swingProgress()
+				: swingFallback(swingProgress);
+		PingPongAnimations.apply(matrices,
+				PingPongClientState.tilt(), PingPongClientState.sideTilt(),
+				progress, PingPongClientState.hand());
 	}
 
 	@Inject(method = "renderFirstPersonItem", at = @At("RETURN"))
@@ -66,9 +71,116 @@ public class HeldItemRendererMixin {
 													 float equipProgress, MatrixStack matrices,
 													 VertexConsumerProvider vertexConsumers, int light,
 													 CallbackInfo ci) {
-		if (this.pingpong$matrixPushed) {
+		if (this.pingpong$firstPersonPushed) {
 			matrices.pop();
-			this.pingpong$matrixPushed = false;
+			this.pingpong$firstPersonPushed = false;
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// 第三人称 / 其他玩家
+	// ------------------------------------------------------------------
+
+	@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"
+			+ "Lnet/minecraft/client/render/model/json/ModelTransformationMode;Z"
+			+ "Lnet/minecraft/client/util/math/MatrixStack;"
+			+ "Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("HEAD"))
+	private void pingpong$beforeThirdPersonItem(LivingEntity entity, ItemStack item,
+												net.minecraft.client.render.model.json.ModelTransformationMode mode,
+												boolean leftHanded, MatrixStack matrices,
+												VertexConsumerProvider vertexConsumers, int light,
+												CallbackInfo ci) {
+		if (!item.isOf(ModItems.PINGPONG_PADDLE) || !pingpong$shouldApplyThirdPerson(entity, leftHanded, mode)) {
+			return;
+		}
+
+		matrices.push();
+		this.pingpong$thirdPersonPushed = true;
+
+		double tilt;
+		double sideTilt;
+		PlayerHand hand;
+		float progress;
+
+		ClientPlayerEntity self = MinecraftClient.getInstance().player;
+		if (entity == self) {
+			// 自己：本地状态最跟手
+			tilt = PingPongClientState.tilt();
+			sideTilt = PingPongClientState.sideTilt();
+			hand = PingPongClientState.hand();
+			progress = PingPongClientState.isSwinging() ? PingPongClientState.swingProgress() : 0.0F;
+		} else {
+			// 别人：用服务端广播来的姿态（这是「能看出对方拍形」的关键）
+			PaddlePoseCache.Pose pose = PaddlePoseCache.get(entity.getUuid());
+			tilt = pose.tilt;
+			sideTilt = pose.sideTilt;
+			hand = pose.hand;
+			progress = pose.swingTicks > 0
+					? 1.0F - (float) pose.swingTicks / PingPongClientState.SWING_TICKS
+					: 0.0F;
+		}
+
+		PingPongAnimations.apply(matrices, tilt, sideTilt, progress, hand);
+	}
+
+	@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"
+			+ "Lnet/minecraft/client/render/model/json/ModelTransformationMode;Z"
+			+ "Lnet/minecraft/client/util/math/MatrixStack;"
+			+ "Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("RETURN"))
+	private void pingpong$afterThirdPersonItem(LivingEntity entity, ItemStack item,
+											   net.minecraft.client.render.model.json.ModelTransformationMode mode,
+											   boolean leftHanded, MatrixStack matrices,
+											   VertexConsumerProvider vertexConsumers, int light,
+											   CallbackInfo ci) {
+		if (this.pingpong$thirdPersonPushed) {
+			matrices.pop();
+			this.pingpong$thirdPersonPushed = false;
+		}
+	}
+
+	/** 只有第三人称视角才在这里加变换（第一人称已由 renderFirstPersonItem 处理，避免叠加两次）。 */
+	@Unique
+	private static boolean pingpong$isThirdPerson() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		return client.options != null && client.options.getPerspective() != Perspective.FIRST_PERSON;
+	}
+
+	/**
+	 * 是否应该在这次 {@code renderItem} 调用上叠加球拍变换。
+	 *
+	 * {@code HeldItemRenderer.renderItem} 同时服务「第一人称的手持物」和「第三人称/其他玩家的手持物」，
+	 * 所以这里要三条判断一起用，否则第一人称会被叠加两次旋转：
+	 * 1. 第三人称物品：一律叠加；
+	 * 2. 玩家自己 + 第一人称视角 + 渲染的正是主手/副手的那个物品：那是第一人称路径，跳过。
+	 *    （只认「当前手持的那个栈」是有意的：玩家在第一人称下看向别人时，别人的球拍仍然要正确显示）
+	 */
+	@Unique
+	private static boolean pingpong$shouldApplyThirdPerson(LivingEntity entity, boolean leftHanded,
+														   net.minecraft.client.render.model.json.ModelTransformationMode mode) {
+		if (mode != net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_LEFT_HAND
+				&& mode != net.minecraft.client.render.model.json.ModelTransformationMode.THIRD_PERSON_RIGHT_HAND) {
+			return true;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.options == null || client.options.getPerspective() != Perspective.FIRST_PERSON) {
+			return true;
+		}
+		if (client.player == null || entity != client.player) {
+			return true;
+		}
+		// 第一人称下渲染自己的主/副手：交给 renderFirstPersonItem 处理
+		net.minecraft.util.Hand hand = leftHanded ? net.minecraft.util.Hand.OFF_HAND : net.minecraft.util.Hand.MAIN_HAND;
+		return !client.player.getStackInHand(hand).isOf(ModItems.PINGPONG_PADDLE);
+	}
+
+	/** 原版挥拍进度（0→1→0）作为兜底，自己的自定义动画结束时不至于突然僵住。 */
+	@Unique
+	private static float swingFallback(float swingProgress) {
+		if (swingProgress <= 0.0F) {
+			return 0.0F;
+		}
+		float sin = net.minecraft.util.math.MathHelper.sin(
+				net.minecraft.util.math.MathHelper.sqrt(swingProgress) * 3.1415927F);
+		return sin * 0.6F;
 	}
 }

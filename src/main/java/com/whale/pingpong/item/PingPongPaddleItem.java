@@ -1,11 +1,15 @@
 package com.whale.pingpong.item;
 
 import com.whale.pingpong.entity.PingPongBallEntity;
+import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.TableGeometry;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
@@ -21,7 +25,9 @@ import java.util.List;
  * 乒乓球拍。
  *
  * 操作：
- * - 左键：挥拍击球（客户端打包发给服务端判定，见 ModNetworking），不改变玩家视角
+ * - 左键：挥拍击球（击球力度由按住时长决定，客户端打包发给服务端判定，见 ModNetworking），不改变玩家视角
+ * - C 键：切换正手 / 反手（在选项→控制→按键绑定里可改键）
+ * - V 键：切换跟球视角
  * - 潜行 + 右键：回收场上的乒乓球，方便重新开始
  *
  * 【注意】球拍<b>只负责击球</b>，右键不会生成或打出乒乓球。
@@ -77,8 +83,17 @@ public class PingPongPaddleItem extends Item {
 		return player != null && player.getMainHandStack().getItem() instanceof PingPongPaddleItem;
 	}
 
-	/** 球拍正前方的击球点（眼睛前方 1.1 格），服务端命中判定用它当圆心。 */
-	public static Vec3d paddlePoint(PlayerEntity player) {
-		return player.getEyePos().add(player.getRotationVec(1.0F).multiply(1.1));
+	/**
+	 * 球拍的击球点（拍面中心）。
+	 *
+	 * 【为什么不再是「眼睛前方 1.1 格」】
+	 * 用户要求 4/6：击球点要分正反手、并且<b>不跟随视角</b>，而是由「球台朝向 + 玩家站在哪一边」决定 ——
+	 * 两个人站在球台两端时，击球点必须各在一侧，否则会挤在同一片空气里挥拍。
+	 * 具体几何在 {@link TableGeometry}。
+	 */
+	public static Vec3d paddlePoint(PlayerEntity player, PlayerHand hand) {
+		Vec3d look = player.getRotationVec(1.0F);
+		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
+		return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand);
 	}
 }

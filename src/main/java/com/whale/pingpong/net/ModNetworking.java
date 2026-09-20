@@ -3,6 +3,9 @@ package com.whale.pingpong.net;
 import com.whale.pingpong.PingPongMod;
 import com.whale.pingpong.entity.PingPongBallEntity;
 import com.whale.pingpong.item.PingPongPaddleItem;
+import com.whale.pingpong.server.PaddlePoseTracker;
+import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.TableGeometry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -25,18 +28,32 @@ import java.util.UUID;
 /**
  * 网络层（1.20.1 Fabric 经典 Identifier + PacketByteBuf 通道）。
  *
- * C2S  paddle_swing ：客户端挥拍 → 服务端做命中判定与物理出球
- * S2C  ball_motion  ：服务端击球后广播新速度与自旋，客户端用于平滑表现
+ * <pre>
+ * 上行 C2S  paddle_action ：玩家的持拍交互
+ *            0 = POSE  拍形/手型变了（滚轮、切正反手）
+ *            1 = SWING 松手挥拍，带蓄力力度 → 服务端做命中判定与物理出球
+ *            2 = CHARGE 按下左键开始蓄力（服务端留作将来做音效/动作提示）
+ *            3 = BALL_CAM 跟球视角开/关
+ * 下行 S2C  paddle_pose ：服务端广播某玩家的权威持拍状态（第三人称渲染 / 自己对齐）
+ * 下行 S2C  ball_motion ：击球瞬间广播球的新速度与自旋
+ * </pre>
  *
  * 所有游戏逻辑都只在服务端执行（server.execute 里），客户端永远不能直接改球的状态。
  */
 public final class ModNetworking {
 
-	public static final Identifier SWING_CHANNEL = PingPongMod.id("paddle_swing");
+	public static final Identifier ACTION_CHANNEL = PingPongMod.id("paddle_action");
+	public static final Identifier POSE_CHANNEL = PingPongMod.id("paddle_pose");
 	public static final Identifier MOTION_CHANNEL = PingPongMod.id("ball_motion");
 
-	/** 球拍够得着的距离（格），从「拍面位置」算起 */
-	private static final double HIT_REACH = 3.0;
+	/** 动作 ID */
+	public static final byte ACTION_POSE = 0;
+	public static final byte ACTION_SWING = 1;
+	public static final byte ACTION_CHARGE = 2;
+	public static final byte ACTION_BALL_CAM = 3;
+
+	/** 球拍够得着的距离（格），从「击球点」算起 */
+	private static final double HIT_REACH = 2.6;
 	/** 同一个玩家两次挥拍之间的最小间隔（tick），防连点刷包 */
 	private static final int SWING_COOLDOWN_TICKS = 2;
 
@@ -46,19 +63,35 @@ public final class ModNetworking {
 	private ModNetworking() {
 	}
 
+	// ==================================================================
+	// 注册
+	// ==================================================================
+
 	/** 两端共用：注册服务端接收器。 */
 	public static void registerCommon() {
-		ServerPlayNetworking.registerGlobalReceiver(SWING_CHANNEL, (server, player, handler, buf, responseSender) -> {
+		ServerPlayNetworking.registerGlobalReceiver(ACTION_CHANNEL, (server, player, handler, buf, responseSender) -> {
 			// 注意：读包必须在网络线程读完，逻辑再丢回主线程
-			float tilt = buf.readFloat();
-			float sideTilt = buf.readFloat();
-			server.execute(() -> handleSwing(player, tilt, sideTilt));
+			byte action = buf.readByte();
+			float a = buf.readFloat();
+			float b = buf.readFloat();
+			byte handId = buf.readByte();
+			server.execute(() -> handleAction(player, action, a, b, handId));
 		});
 	}
 
 	/** 客户端：注册 S2C 接收器。 */
 	@Environment(EnvType.CLIENT)
 	public static void registerClient() {
+		ClientPlayNetworking.registerGlobalReceiver(POSE_CHANNEL, (client, handler, buf, responseSender) -> {
+			UUID uuid = buf.readUuid();
+			float tilt = buf.readFloat();
+			float sideTilt = buf.readFloat();
+			byte handId = buf.readByte();
+			float swingPower = buf.readFloat();
+			boolean ballCam = buf.readBoolean();
+			client.execute(() -> applyPose(uuid, tilt, sideTilt, PlayerHand.byId(handId), swingPower, ballCam));
+		});
+
 		ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {
 			int entityId = buf.readVarInt();
 			double vx = buf.readDouble();
@@ -71,13 +104,78 @@ public final class ModNetworking {
 		});
 	}
 
-	/** 客户端发送挥拍包（携带当前拍面角度）。 */
+	// ==================================================================
+	// 客户端 → 服务端
+	// ==================================================================
+
+	/** 拍形/手型变了（滚轮调节、切正反手、切槽位读档）。 */
 	@Environment(EnvType.CLIENT)
-	public static void sendSwing(double tilt, double sideTilt) {
+	public static void sendPose(double tilt, double sideTilt, PlayerHand hand) {
 		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeByte(ACTION_POSE);
 		buf.writeFloat((float) tilt);
 		buf.writeFloat((float) sideTilt);
-		ClientPlayNetworking.send(SWING_CHANNEL, buf);
+		buf.writeByte((byte) hand.ordinal());
+		ClientPlayNetworking.send(ACTION_CHANNEL, buf);
+	}
+
+	/** 左键松手：一次挥拍，带上蓄力力度 0~1（需求 1）。 */
+	@Environment(EnvType.CLIENT)
+	public static void sendSwing(double power) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeByte(ACTION_SWING);
+		buf.writeFloat((float) power);
+		buf.writeFloat(0.0F);
+		buf.writeByte((byte) PingPongClientStateHand());
+		ClientPlayNetworking.send(ACTION_CHANNEL, buf);
+	}
+
+	/** 左键按下：开始蓄力（服务端目前只记状态，留给动作/音效提示）。 */
+	@Environment(EnvType.CLIENT)
+	public static void sendChargeStart() {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeByte(ACTION_CHARGE);
+		buf.writeFloat(0.0F);
+		buf.writeFloat(0.0F);
+		buf.writeByte((byte) PingPongClientStateHand());
+		ClientPlayNetworking.send(ACTION_CHANNEL, buf);
+	}
+
+	/** 跟球视角开关。 */
+	@Environment(EnvType.CLIENT)
+	public static void sendBallCam(boolean enabled) {
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeByte(ACTION_BALL_CAM);
+		buf.writeFloat(enabled ? 1.0F : 0.0F);
+		buf.writeFloat(0.0F);
+		buf.writeByte((byte) PingPongClientStateHand());
+		ClientPlayNetworking.send(ACTION_CHANNEL, buf);
+	}
+
+	/** 小工具：取当前客户端手型序号（避免在发送方法里散落客户端状态引用）。 */
+	@Environment(EnvType.CLIENT)
+	private static int PingPongClientStateHand() {
+		return com.whale.pingpong.client.PingPongClientState.hand().ordinal();
+	}
+
+	// ==================================================================
+	// 服务端 → 客户端
+	// ==================================================================
+
+	/** 服务端：把一个玩家的持拍状态发给指定接收者。 */
+	public static void sendPaddlePose(ServerPlayerEntity receiver, ServerPlayerEntity owner,
+									  PaddlePoseTracker.State state) {
+		if (!ServerPlayNetworking.canSend(receiver, POSE_CHANNEL)) {
+			return;
+		}
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeUuid(owner.getUuid());
+		buf.writeFloat(state.tilt);
+		buf.writeFloat(state.sideTilt);
+		buf.writeByte((byte) state.hand.ordinal());
+		buf.writeFloat(state.swingPower);
+		buf.writeBoolean(state.ballCam);
+		ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);
 	}
 
 	/** 服务端：把球的最新速度 / 自旋推给所有能看到它的玩家。 */
@@ -114,12 +212,46 @@ public final class ModNetworking {
 	// 服务端逻辑
 	// ==================================================================
 
-	/** 处理一次挥拍：反作弊校验 → 找球 → 算物理 → 播放动画。 */
-	private static void handleSwing(ServerPlayerEntity player, float tilt, float sideTilt) {
+	private static void handleAction(ServerPlayerEntity player, byte action, float a, float b, byte handId) {
 		if (player.isRemoved() || player.isSpectator()) {
 			return;
 		}
-		// 校验 1：必须真的拿着球拍（客户端可以伪造包，服务端说了算）
+		PaddlePoseTracker.State state = PaddlePoseTracker.get(player);
+
+		switch (action) {
+			case ACTION_POSE -> {
+				// 校验：必须真的拿着球拍（客户端可以伪造包，服务端说了算）
+				if (!(player.getMainHandStack().getItem() instanceof PingPongPaddleItem)) {
+					return;
+				}
+				PlayerHand hand = PlayerHand.byId(handId);
+				boolean handChanged = hand != state.hand;
+				state.hand = hand;
+				if (handChanged) {
+					// 切手：拍形一律回到该手型的准备姿势，不接受客户端随便编的数值（需求 4.2）
+					state.tilt = (float) hand.readyTilt();
+					state.sideTilt = (float) hand.readySideTilt();
+				} else {
+					state.tilt = clampPose(a);
+					state.sideTilt = clampPose(b);
+				}
+				state.swingPower = 0.0F;
+				PaddlePoseTracker.broadcast(player.getServer(), player, true);
+			}
+			case ACTION_SWING -> swing(player, a, handId, state);
+			case ACTION_CHARGE -> state.swingPower = 0.0F;
+			case ACTION_BALL_CAM -> {
+				state.ballCam = a > 0.5F;
+				PaddlePoseTracker.broadcast(player.getServer(), player, true);
+			}
+			default -> {
+			}
+		}
+	}
+
+	/** 处理一次挥拍：校验 → 找球 → 算物理 → 播放动画。 */
+	private static void swing(ServerPlayerEntity player, float charge, byte handId, PaddlePoseTracker.State state) {
+		// 校验 1：必须真的拿着球拍
 		if (!(player.getMainHandStack().getItem() instanceof PingPongPaddleItem)) {
 			return;
 		}
@@ -131,10 +263,22 @@ public final class ModNetworking {
 		}
 		LAST_SWING.put(player.getUuid(), now);
 
-		// 拍面位置：眼睛前方 1.1 格
-		Vec3d paddlePos = PingPongPaddleItem.paddlePoint(player);
-		Box searchBox = new Box(paddlePos, paddlePos).expand(HIT_REACH);
+		// 手型以服务端记录为准（客户端可以伪造包）
+		PlayerHand hand = PlayerHand.byId(handId);
+		if (hand != state.hand) {
+			// 允许一次「随挥拍顺带切手」，但不接受与任何已知状态都不符的乱填值
+			hand = state.hand;
+		}
 
+		float power = clampPose(charge);
+
+		// 击球点：由「球台朝向 + 玩家站在球台哪一边」决定，正反手各在一侧（需求 4 / 6）
+		Vec3d eyePos = player.getEyePos();
+		Vec3d look = player.getRotationVec(1.0F);
+		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
+		Vec3d paddlePos = TableGeometry.paddlePoint(eyePos, look, outward, hand);
+
+		Box searchBox = Box.from(paddlePos).expand(HIT_REACH);
 		PingPongBallEntity target = null;
 		double bestDistance = HIT_REACH * HIT_REACH;
 		for (PingPongBallEntity ball : player.getWorld()
@@ -146,14 +290,40 @@ public final class ModNetworking {
 			}
 		}
 
-		if (target != null && target.hitByPaddle(player, tilt, sideTilt)) {
+		if (target != null && target.hitByPaddle(player, state.tilt, state.sideTilt, power, hand)) {
 			// 命中：让所有人（包括自己）看到挥臂动作。视角不受影响，只有手臂/手持物在动。
 			player.swingHand(Hand.MAIN_HAND);
+			state.swingUntil = now + 8;
+			state.swingPower = 0.35F + 0.65F * power;
+			PaddlePoseTracker.broadcast(player.getServer(), player, false);
 		} else {
 			// 空挥：只有声音
 			player.getWorld().playSound(null, player.getX(), player.getY(), player.getZ(),
 					net.minecraft.sound.SoundEvents.ENTITY_PLAYER_ATTACK_WEAK,
 					net.minecraft.sound.SoundCategory.PLAYERS, 0.25F, 1.8F);
+		}
+	}
+
+	private static float clampPose(float value) {
+		if (Float.isNaN(value)) {
+			return 0.0F;
+		}
+		return Math.max(-1.0F, Math.min(1.0F, value));
+	}
+
+	// ==================================================================
+	// 客户端应用下行数据
+	// ==================================================================
+
+	@Environment(EnvType.CLIENT)
+	private static void applyPose(UUID uuid, float tilt, float sideTilt, PlayerHand hand,
+								  float swingPower, boolean ballCam) {
+		com.whale.pingpong.client.PaddlePoseCache.update(uuid, tilt, sideTilt, hand, swingPower, ballCam);
+
+		net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+		if (client.player != null && client.player.getUuid().equals(uuid)) {
+			// 自己：服务端已确认，清掉 dirty 标记，避免每 tick 重复发包
+			com.whale.pingpong.client.PingPongClientState.markSynced(tilt, sideTilt, hand);
 		}
 	}
 

@@ -5,6 +5,8 @@ import com.whale.pingpong.block.ModBlocks;
 import com.whale.pingpong.block.PingPongTableBlock;
 import com.whale.pingpong.net.ModNetworking;
 import com.whale.pingpong.physics.PingPongPhysics;
+import com.whale.pingpong.util.PlayerHand;
+import com.whale.pingpong.util.TableGeometry;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -69,14 +71,23 @@ public class PingPongBallEntity extends Entity {
 	private static final double MAX_STEP = 0.2;
 
 	// ---- 击球参数（想改手感就动这几个数） ----
-	/** 基础出球速度（格/tick） */
-	public static final double BASE_HIT_SPEED = 0.85;
+	/**
+	 * 基础拍速（格/tick）：轻点一下的最低出球速度。
+	 * 【为什么从 0.85 降到 0.30】用户实测原话「球击打出去的速度太快了，打的太远了」。
+	 * 现在出球速度由「左键按住时长」决定，基础值只代表轻点那一下（需求 1）。
+	 */
+	public static final double BASE_HIT_SPEED = 0.30;
+	/** 蓄力加成：按住满力度额外加多少（格/tick）。0.85 时满力度约 1.15，仍比二期慢三成 */
+	public static final double CHARGE_SPEED_BONUS = 0.85;
 	/** 借力系数：把来球速度的一部分加回去，来球越快回球越快 */
-	public static final double HIT_SPEED_INHERIT = 0.30;
-	public static final double MIN_HIT_SPEED = 0.45;
-	public static final double MAX_HIT_SPEED = 1.80;
-	/** 拍面后仰 / 前倾的最大角度（度）：同时决定出球仰角和自旋强度 */
-	public static final double MAX_TILT_DEGREES = 22.0;
+	public static final double HIT_SPEED_INHERIT = 0.25;
+	public static final double MIN_HIT_SPEED = 0.12;
+	public static final double MAX_HIT_SPEED = 1.25;
+	/**
+	 * 拍面后仰 / 前倾的最大角度（度）：同时决定出球仰角和自旋强度。
+	 * 二期是 22°，上旋与下旋的出球速度只差 15%，用户说「旋转没有任何体现」，这里加大到 26°。
+	 */
+	public static final double MAX_TILT_DEGREES = 26.0;
 	/**
 	 * 出球的最小仰角（度）。
 	 * 平射球的竖直速度太小：0.85 格/tick 平射落地时 v_y ≈ -0.2，
@@ -482,39 +493,53 @@ public class PingPongBallEntity extends Entity {
 	 * 被球拍击中。
 	 *
 	 * @param player   击球玩家
-	 * @param tilt     拍面俯仰：&gt; 0 = 后仰（滚轮上）→ 上旋球；&lt; 0 = 前倾（滚轮下）→ 下旋球
+	 * @param tilt     拍面俯仰：&gt; 0 = 前倾（拍盖上压）→ 上旋球；&lt; 0 = 后仰（兜球）→ 下旋球
 	 * @param sideTilt 拍面侧偏：Alt + 滚轮，产生侧旋（香蕉球）
+	 * @param power    击球力度 0~1：由客户端「左键按住时长」决定，服务端只做范围校验（需求 1）
+	 * @param hand     正手 / 反手：决定出球的侧向分量与轻微自旋差异（需求 4）
 	 * @return 是否真的打到
 	 */
-	public boolean hitByPaddle(ServerPlayerEntity player, double tilt, double sideTilt) {
+	public boolean hitByPaddle(ServerPlayerEntity player, double tilt, double sideTilt, double power, PlayerHand hand) {
 		if (this.hitCooldown > 0) {
 			return false;
 		}
 
 		double t = MathHelper.clamp(tilt, -1.0, 1.0);
 		double s = MathHelper.clamp(sideTilt, -1.0, 1.0);
+		double hitPower = MathHelper.clamp(power, 0.0, 1.0);
 
-		// --- 1. 出球方向：玩家视线 + 拍面俯仰/侧偏（视角本身不动，只是球拍角度变了） ---
-		double pitchDegrees = player.getPitch() - t * MAX_TILT_DEGREES;
+		// --- 1. 出球方向 ---
+		// 有球台时主要朝「球台对面」那一侧（跟球视角下视线锁在球上也能把球打回去，需求 6），
+		// 附近没球台就退回「按视线」，保持自由练习的手感。
+		Vec3d outward = TableGeometry.outward(this.getWorld(), player.getPos());
+		Vec3d horizontal = TableGeometry.hitDirection(player.getRotationVec(1.0F), outward);
+
+		// 拍面俯仰：前倾压低出射角、后仰抬高，力度越大越能压住弧线
+		double pitchDegrees = player.getPitch() - t * MAX_TILT_DEGREES * (0.55 + 0.75 * hitPower);
 		// 至少抬 6°：平射球落地时竖直速度太小，反弹高度不足半格，肉眼看就是「贴地滚」
 		pitchDegrees = Math.min(pitchDegrees, -MIN_LAUNCH_ELEVATION_DEGREES);
 		double pitchRad = Math.toRadians(pitchDegrees);
-		double yawRad = Math.toRadians(player.getYaw() + s * MAX_TILT_DEGREES);
+
+		// 正反手各带一点侧向分量：正手扫出去略偏右，反手推出去略偏左（真实拍形差异）
+		double handYaw = hand == PlayerHand.FOREHAND ? 3.5 : -3.5;
+		double sideDegrees = s * MAX_TILT_DEGREES * 0.85 + handYaw;
+		double sideRad = Math.toRadians(sideDegrees);
+
 		Vec3d direction = new Vec3d(
-				-Math.sin(yawRad) * Math.cos(pitchRad),
+				horizontal.x * Math.cos(sideRad) - horizontal.z * Math.sin(sideRad),
 				-Math.sin(pitchRad),
-				Math.cos(yawRad) * Math.cos(pitchRad)
+				horizontal.x * Math.sin(sideRad) + horizontal.z * Math.cos(sideRad)
 		).normalize();
 
-		// --- 2. 出球速度：基础速度 + 借用来球动能 + 自旋耦合（上旋更快、下旋更慢） ---
+		// --- 2. 出球速度：基础拍速 + 蓄力力度 + 借用来球动能 + 自旋耦合（上旋更快、下旋更慢） ---
 		double incoming = this.physicsVelocity.length();
 		double spinCoupling = 1.0 + t * SPIN_SPEED_COUPLING;
 		double speed = MathHelper.clamp(
-				(BASE_HIT_SPEED + HIT_SPEED_INHERIT * incoming) * spinCoupling,
+				(BASE_HIT_SPEED + CHARGE_SPEED_BONUS * hitPower + HIT_SPEED_INHERIT * incoming) * spinCoupling,
 				MIN_HIT_SPEED, MAX_HIT_SPEED);
 		this.setPhysicsVelocity(direction.multiply(speed));
 
-		// --- 3. 自旋 ---
+		// --- 3. 自旋：力度越大转得越狠（现实里也是用力抽才转） ---
 		Vec3d flat = new Vec3d(direction.x, 0.0, direction.z);
 		flat = flat.lengthSquared() < 1.0e-6 ? new Vec3d(0.0, 0.0, 1.0) : flat.normalize();
 
@@ -525,7 +550,8 @@ public class PingPongBallEntity extends Entity {
 				.add(flat.multiply(Math.sin(SIDE_AXIS_TILT)))
 				.normalize();
 
-		Vec3d spin = topspinAxis.multiply(t * MAX_SPIN).add(sideAxis.multiply(s * MAX_SPIN));
+		double spinScale = MAX_SPIN * (0.35 + 0.65 * hitPower);
+		Vec3d spin = topspinAxis.multiply(t * spinScale).add(sideAxis.multiply(s * spinScale));
 		this.setSpin(spin);
 
 		// --- 4. 收尾：冷却、位置微调、同步、特效 ---
@@ -534,9 +560,9 @@ public class PingPongBallEntity extends Entity {
 		this.ownerUuid = player.getUuid();
 
 		// 原版 Entity#move 会把玩家碰撞箱当成墙，贴身球会被自己挡住，
-		// 所以离身体太近的球直接「拨」到拍面位置再飞出去。
-		if (this.getPos().squaredDistanceTo(player.getEyePos()) < 1.0) {
-			Vec3d paddlePos = player.getEyePos().add(player.getRotationVec(1.0F).multiply(1.1));
+		// 所以离身体太近的球直接「拨」到击球点位置再飞出去。
+		Vec3d paddlePos = TableGeometry.paddlePoint(player.getEyePos(), player.getRotationVec(1.0F), outward, hand);
+		if (this.getPos().squaredDistanceTo(player.getEyePos()) < 2.25) {
 			this.refreshPositionAndAngles(paddlePos.x, paddlePos.y, paddlePos.z, this.getYaw(), this.getPitch());
 		} else {
 			this.setPosition(this.getPos().add(direction.multiply(0.2)));
@@ -544,13 +570,16 @@ public class PingPongBallEntity extends Entity {
 
 		ModNetworking.broadcastBallMotion(this);
 
+		// 力度越大，击球声越响、音调越低
+		float volume = (float) (0.35 + 0.45 * hitPower);
+		float pitch = (float) (1.85 - 0.55 * hitPower);
 		this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
-				SoundEvents.ENTITY_PLAYER_ATTACK_STRONG, SoundCategory.PLAYERS, 0.6F, 1.6F);
+				SoundEvents.ENTITY_PLAYER_ATTACK_STRONG, SoundCategory.PLAYERS, volume, pitch);
 
 		if (this.getWorld() instanceof ServerWorld serverWorld) {
 			serverWorld.spawnParticles(ParticleTypes.CRIT,
 					this.getX(), this.getY() + 0.14, this.getZ(),
-					6, 0.08, 0.08, 0.08, 0.05);
+					3 + (int) Math.round(6.0 * hitPower), 0.08, 0.08, 0.08, 0.05);
 		}
 		return true;
 	}
