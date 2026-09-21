@@ -155,14 +155,25 @@ const model = {
     layer0: 'pingpong:item/pingpong_paddle',
   },
   elements,
+  /*
+   * 【手持姿态：让拍面斜着朝向镜头，而不是正对】
+   *
+   * 用户连续反馈"球拍还是 2D 平面"。除了几何厚度，还有一个我自己的设计失误：
+   * 原来的 display 变换把拍面**正对镜头**（第一人称 yaw −90°、第三人称 −90°），
+   * 于是拍面的厚度投影几乎为零 —— 6 像素的厚度也看不出来，看着就是一张贴图。
+   *
+   * 现在改成斜着拿（yaw 在 −50° 左右）：既看得清拍面（红/黑胶皮），
+   * 又能同时看到侧边（木芯）和厚度，立体感一下就出来了。
+   * 真实球拍也是这样握的 —— 不会把拍面正对眼睛。
+   */
   display: {
-    thirdperson_righthand: { rotation: [0, -90, 55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85] },
-    thirdperson_lefthand: { rotation: [0, 90, -55], translation: [0, 4, 0.5], scale: [0.85, 0.85, 0.85] },
-    firstperson_righthand: { rotation: [0, -90, 25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
-    firstperson_lefthand: { rotation: [0, 90, -25], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
-    gui: { rotation: [0, 0, 0], translation: [0, 0, 0], scale: [1, 1, 1] },
+    thirdperson_righthand: { rotation: [0, -55, 35], translation: [0, 5, 0.5], scale: [0.85, 0.85, 0.85] },
+    thirdperson_lefthand: { rotation: [0, 55, -35], translation: [0, 5, 0.5], scale: [0.85, 0.85, 0.85] },
+    firstperson_righthand: { rotation: [0, -50, 18], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
+    firstperson_lefthand: { rotation: [0, 50, -18], translation: [1.13, 3.2, 1.13], scale: [0.68, 0.68, 0.68] },
+    gui: { rotation: [0, 45, 0], translation: [0, 0, 0], scale: [1, 1, 1] },
     ground: { rotation: [0, 0, 0], translation: [0, 2, 0], scale: [0.5, 0.5, 0.5] },
-    fixed: { rotation: [0, 180, 0], translation: [0, 0, 0], scale: [1, 1, 1] },
+    fixed: { rotation: [0, 45, 0], translation: [0, 0, 0], scale: [1, 1, 1] },
   },
 };
 
