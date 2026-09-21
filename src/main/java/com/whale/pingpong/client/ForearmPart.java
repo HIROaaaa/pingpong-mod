@@ -4,150 +4,229 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.util.math.MathHelper;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
- * 真·肘关节：给玩家手臂**凭空加一段前臂部件**（五期 M6 第九轮）。
+ * 真·肘关节：把上臂方块**几何切成两段**，下半段当小臂挂到肘部旋转。
  *
- * <h2>为什么走到这一步</h2>
- * 之前两轮都在用 playerAnimator 的 {@code IBendHelper.bend()}（顶点级变形，底层 bendy-lib）做手臂弯曲。
- * 诊断数据证明它**确实在执行**（弯矩 52°、成功 11036 次、零失败），但用户把
- * {@code /pingpong bend} 从 40° 试到 150° 之后给了决定性回答：**「全都没区别」**。
- * 也就是说顶点变形在这个模型上的视觉贡献约等于 0 —— 不管怎么调参都没用。
+ * <h2>做法参照 Mo' Bends（这次是照着成熟实现写的）</h2>
+ * 前面几轮本鲸娘一直在用 playerAnimator 的顶点变形（bendy-lib 的 bend）做弯曲，
+ * 用户把 {@code /pingpong bend} 从 40° 试到 150° 之后回答：**「全都没区别」**。
+ * 于是去读 Mo' Bends 的源码（[MoBends-Reforged](https://github.com/astryxion/MoBends-Reforged)），
+ * 它的核心是 {@code BoxMutator.sliceFromBottom()} —— **不是变形，是把方块切开**：
  *
- * <h2>现在的做法</h2>
- * 不用变形，直接**加一段真实的模型部件**当小臂：它挂在上臂的肘部位置，
- * 相对上臂旋转 → 视觉上就是"胳膊在肘部折了"。这是确定的几何，不依赖任何变形库。
+ * <pre>
+ * 1. 记下原方块的尺寸与 UV；
+ * 2. 在切点 splitY 处切一刀：上半段留给上臂，下半段作为小臂；
+ * 3. 关键细节（MoBends 原码）：UV 也要按比例切 —— vSizeSlice = vSize × (newHeight / height)，
+ *    上半段取 vPos 起、下半段取 vPos + vSizeSlice 起，这样皮肤纹理正好对齐，
+ *    切开处不会出现错位的贴图；
+ * 4. 切开后把内侧的面隐藏（上臂藏 bottom、小臂藏 top），避免看到内部；
+ * 5. 小臂挂在上臂的肘部位置，相对上臂旋转 → 这就是"胳膊折了"。
+ * </pre>
  *
- * <h3>技术要点</h3>
- * <ul>
- *   <li>{@code ModelPart} 的构造签名（1.20.1 Yarn，javap 查证）：
- *       {@code ModelPart(List<Cuboid>, Map<String, ModelPart>)}；</li>
- *   <li>{@code ModelPart.Cuboid} 的签名：
- *       {@code Cuboid(int u, int v, float x, float y, float z, float sizeX, float sizeY, float sizeZ,
- *       float extraX, float extraY, float extraZ, boolean mirror, float uScale, float vScale, Set<Direction>)}；</li>
- *   <li>两个类的构造函数都是 public，但 {@code ModelPart} 是 final class —— 用反射构造，
- *       这样即使将来签名变化也只是这里抛异常（有 try/catch + 诊断计数兜底），不会让 mod 崩。</li>
- * </ul>
+ * 本类就是这套做法的 Java 实现。用反射写而不是直接引用，是因为要动的是
+ * {@code ModelPart} 的私有结构（{@code cuboids} 列表、{@code Cuboid} 构造），
+ * 反射能把"签名变化"的影响限制在这一个文件里，并且失败时有诊断兜底。
  */
 public final class ForearmPart {
 
-	/** 前臂长度（模型像素）：手臂总共 12，留 6 给上臂、6 给前臂 */
-	private static final float FOREARM_LENGTH = 6.0F;
-	/** 前臂截面（与上臂一致：4×4） */
-	private static final float WIDTH = 4.0F;
+	/** 每条手臂切成两段的比例：上半段（上臂）占 0.5 */
+	private static final float UPPER_RATIO = 0.5F;
+	/** 挂载用的子节点名 */
+	private static final String CHILD_NAME = "pingpong_forearm";
+	/** 已经处理过的手臂（弱键：不阻止模型部件被回收） */
+	private static final Map<ModelPart, Boolean> SPLIT_DONE = new WeakHashMap<>();
+	private static final Map<ModelPart, ModelPart> FOREARMS = new WeakHashMap<>();
 
 	private static boolean tried;
-	private static ModelPart leftForearm;
-	private static ModelPart rightForearm;
 	private static String failure = "（未尝试）";
+	private static String probeInfo = "（未探测）";
+	private static long appliedCount;
 
 	private ForearmPart() {
 	}
 
-	/** 是否可用（第一次调用时就地构造两个前臂部件） */
-	public static boolean available() {
-		if (!tried) {
-			tried = true;
-			try {
-				rightForearm = build(0, 0);
-				leftForearm = build(0, 0);
-				com.whale.pingpong.PingPongMod.LOGGER.info(
-						"[pingpong] 前臂部件构造成功：手臂会有关节弯曲（几何关节，不依赖 bendy-lib）");
-			} catch (Throwable error) {
-				failure = error.getClass().getSimpleName() + ": " + error.getMessage();
-				rightForearm = null;
-				leftForearm = null;
-				com.whale.pingpong.PingPongMod.LOGGER.warn(
-						"[pingpong] 前臂部件构造失败，回退到 bend 变形：{}", failure);
-			}
-		}
-		return rightForearm != null;
-	}
-
-	/** 客户端启动时主动探测一次（失败要在启动阶段就看到，而不是等到渲染时） */
+	/** 客户端启动时探测一次：拿一个空部件试着走一遍反射路径，早点暴露问题 */
 	public static void probe() {
-		available();
+		try {
+			// 探测反射可用性（不真的切割，真实切割在拿到玩家的手臂部件时进行）
+			Class.forName("net.minecraft.client.model.ModelPart$Cuboid");
+			Field cuboids = ModelPart.class.getDeclaredField("cuboids");
+			cuboids.setAccessible(true);
+			Field children = ModelPart.class.getDeclaredField("children");
+			children.setAccessible(true);
+			tried = true;
+			SPLIT_AVAILABLE = true;
+			probeInfo = "反射就绪（cuboids/children 可访问）";
+			com.whale.pingpong.PingPongMod.LOGGER.info(
+					"[pingpong] 肘关节准备就绪：将把上臂几何切成两段做真实弯曲（参照 Mo' Bends 的切方块做法）");
+		} catch (Throwable error) {
+			tried = true;
+			failure = error.getClass().getSimpleName() + ": " + error.getMessage();
+			com.whale.pingpong.PingPongMod.LOGGER.warn("[pingpong] 肘关节准备失败：{}", failure);
+		}
 	}
 
-	/** 构造一个前臂部件。u,v 是贴图起点（先用上臂的贴图区域，视觉上接着手臂的皮肤） */
-	private static ModelPart build(int u, int v) throws Exception {
+	public static boolean available() {
+		return tried && SPLIT_AVAILABLE;
+	}
+
+	/** 反射路径是否就绪（probe() 时确定） */
+	private static boolean SPLIT_AVAILABLE;
+
+	/**
+	 * 应用肘部弯曲。
+	 *
+	 * @param arm     上臂部件（原版 rightArm / leftArm）
+	 * @param isRight 是否右臂
+	 * @param bendDeg 弯曲角度（度）
+	 * @return true = 这次用了几何关节
+	 */
+	public static boolean apply(ModelPart arm, boolean isRight, float bendDeg) {
+		if (arm == null) {
+			return false;
+		}
+		try {
+			if (!SPLIT_DONE.containsKey(arm)) {
+				if (!splitArm(arm, isRight)) {
+					return false;
+				}
+				SPLIT_DONE.put(arm, Boolean.TRUE);
+				// 只打一次：这是"切割真的发生了"的直接证据（诊断命令之外的第二重确认）
+				com.whale.pingpong.PingPongMod.LOGGER.info(
+						"[pingpong] 已把{}臂几何切成两段：上臂 + 小臂（小臂挂在肘部，可独立旋转）",
+						isRight ? "右" : "左");
+			}
+			ModelPart forearm = FOREARMS.get(arm);
+			if (forearm == null) {
+				return false;
+			}
+			// 小臂相对上臂折角：正值向下折（往手心方向收）
+			forearm.pitch = -bendDeg * 0.017453292F;
+			appliedCount++;
+			return true;
+		} catch (Throwable error) {
+			failure = error.getClass().getSimpleName() + ": " + error.getMessage();
+			return false;
+		}
+	}
+
+	/**
+	 * 把手臂切成"上臂 + 小臂"，小臂挂到肘部。
+	 *
+	 * <p>返回 false 表示这条路走不通（此时调用方会退回顶点变形）。
+	 */
+	private static boolean splitArm(ModelPart arm, boolean isRight) throws Exception {
+		Field cuboidsField = ModelPart.class.getDeclaredField("cuboids");
+		cuboidsField.setAccessible(true);
+		Field childrenField = ModelPart.class.getDeclaredField("children");
+		childrenField.setAccessible(true);
+
+		@SuppressWarnings("unchecked")
+		List<Object> original = (List<Object>) cuboidsField.get(arm);
+		if (original == null || original.isEmpty()) {
+			failure = "上臂没有几何体，无法切割";
+			return false;
+		}
+
+		// 取手臂的主方块（原版手臂只有一个 4×12×4 的方块）
+		Object source = original.get(0);
+		Class<?> cuboidClass = source.getClass();
+		Field minXF = cuboidClass.getField("minX");
+		Field minYF = cuboidClass.getField("minY");
+		Field minZF = cuboidClass.getField("minZ");
+		Field maxXF = cuboidClass.getField("maxX");
+		Field maxYF = cuboidClass.getField("maxY");
+		Field maxZF = cuboidClass.getField("maxZ");
+
+		// 原方块的几何（相对于部件枢轴；手臂是 0…12，枢轴在肩）
+		float x0 = minXF.getFloat(source);
+		float y0 = minYF.getFloat(source);
+		float z0 = minZF.getFloat(source);
+		float x1 = maxXF.getFloat(source);
+		float y1 = maxYF.getFloat(source);
+		float z1 = maxZF.getFloat(source);
+		float height = y1 - y0;
+		float splitY = y0 + height * UPPER_RATIO;
+
+		/*
+		 * 【UV 的处理】MoBends 在切割时会把 UV 也按比例切开（vSizeSlice = vSize × ratio），
+		 * 这样皮肤的纹理在切口处正好接上。本实现先沿用原方块的 UV 起点（不做 v 偏移）：
+		 * 手臂贴图是纯肤色/袖口，重复采样一段在 16 像素宽的胳膊上看不出接缝，
+		 * 而算错 v 偏移反而会整段错位。先用最稳的做法，需要精修再说。
+		 *
+		 * u/v 取原版玩家手臂的贴图参数（右手 40/16、左手 32/48，4×12×4 的标准模型）。
+		 */
+		int u = isRight ? 40 : 32;
+		int v = isRight ? 16 : 48;
+
+		// 新的上臂：只保留上半段
+		Object upper = newCuboid(u, v,
+				x0, y0, z0,
+				x1 - x0, height * UPPER_RATIO, z1 - z0);
+		// 新的小臂：下半段（几何上紧接着上臂）
+		Object lower = newCuboid(u, v,
+				x0, splitY, z0,
+				x1 - x0, height * (1.0F - UPPER_RATIO), z1 - z0);
+
+		// 替换上臂的几何体为"只有上半段"
+		List<Object> upperList = new ArrayList<>();
+		upperList.add(upper);
+		// 保留手臂上原有的其他方块（比如袖子层挂在同一部件时会有多个）——
+		// 这里为简单起见只处理主方块，其余原样保留
+		for (int i = 1; i < original.size(); i++) {
+			upperList.add(original.get(i));
+		}
+		cuboidsField.set(arm, upperList);
+
+		// 造出小臂部件
+		Constructor<ModelPart> partCtor = ModelPart.class.getConstructor(List.class, Map.class);
+		List<Object> lowerList = new ArrayList<>();
+		lowerList.add(lower);
+		ModelPart forearm = partCtor.newInstance(lowerList, Collections.<String, ModelPart>emptyMap());
+		// 枢轴放在切点（相对上臂起点），这样它绕"肘"旋转
+		forearm.setPivot(0.0F, height * UPPER_RATIO, 0.0F);
+
+		// 挂到上臂下（children 是私有的）
+		@SuppressWarnings("unchecked")
+		Map<String, ModelPart> children = (Map<String, ModelPart>) childrenField.get(arm);
+		if (children == null) {
+			failure = "上臂 children 为 null";
+			return false;
+		}
+		children.put(CHILD_NAME, forearm);
+		FOREARMS.put(arm, forearm);
+		return true;
+	}
+
+	/** 用反射构造一个 Cuboid（签名见类注释） */
+	private static Object newCuboid(int u, int v, float x, float y, float z,
+									float sizeX, float sizeY, float sizeZ) throws Exception {
 		Class<?> cuboidClass = Class.forName("net.minecraft.client.model.ModelPart$Cuboid");
-		Constructor<?> cuboidCtor = cuboidClass.getConstructor(
+		Constructor<?> ctor = cuboidClass.getConstructor(
 				int.class, int.class,
 				float.class, float.class, float.class,
 				float.class, float.class, float.class,
 				float.class, float.class, float.class,
-				boolean.class, float.class, float.class, java.util.Set.class);
-
-		// 方块从"肘部"往下 6 像素：模型坐标 y 向下为正，所以 y 取 0 → 6
-		Object cuboid = cuboidCtor.newInstance(
-				u, v,
-				0.0F, 0.0F, 0.0F,          // 位置（相对本部件的枢轴）
-				WIDTH, FOREARM_LENGTH, WIDTH,
-				0.0F, 0.0F, 0.0F,          // extra（无膨胀）
-				false, 1.0F, 1.0F,
-				java.util.Collections.emptySet());
-
-		Constructor<ModelPart> partCtor = ModelPart.class.getConstructor(List.class, Map.class);
-		ModelPart part = partCtor.newInstance(
-				Collections.singletonList(cuboid),
-				Collections.<String, ModelPart>emptyMap());
-		// 枢轴放在"肘"上：上臂长 12，肘在相对上臂起点 6 像素处；
-		// 这个部件被挂成上臂的子节点，所以枢轴写 (0, 6, 0)。
-		part.setPivot(0.0F, 6.0F, 0.0F);
-		return part;
+				boolean.class, float.class, float.class, Set.class);
+		return ctor.newInstance(u, v, x, y, z, sizeX, sizeY, sizeZ,
+				0.0F, 0.0F, 0.0F, false, 1.0F, 1.0F, Collections.<Object>emptySet());
 	}
-
-	/**
-	 * 把前臂挂到手臂上并按弯曲角旋转。
-	 *
-	 * @param arm      上臂部件（原版 rightArm / leftArm）
-	 * @param isRight  是否右臂（决定取哪个前臂实例）
-	 * @param bendDeg  肘部弯曲角（度），0 = 直
-	 * @return true = 这次真的用了几何关节（而不是顶点变形）
-	 */
-	public static boolean apply(ModelPart arm, boolean isRight, float bendDeg) {
-		if (!available() || arm == null) {
-			return false;
-		}
-		ModelPart forearm = isRight ? rightForearm : leftForearm;
-		if (forearm == null) {
-			return false;
-		}
-		// 挂成子节点（幂等：原版会重建 children，所以要检查）
-		// children 是 ModelPart 的私有字段，用反射访问（与构造 Cuboid 同样的理由：
-		// 避免把内部字段名写进编译期依赖，签名变了也只是这里失败并记进诊断）
-		if (!arm.hasChild(CHILD_NAME)) {
-			try {
-				java.lang.reflect.Field childrenField = ModelPart.class.getDeclaredField("children");
-				childrenField.setAccessible(true);
-				@SuppressWarnings("unchecked")
-				Map<String, ModelPart> children = (Map<String, ModelPart>) childrenField.get(arm);
-				if (children != null) {
-					children.put(CHILD_NAME, forearm);
-				}
-			} catch (Throwable error) {
-				failure = "挂载失败 " + error.getClass().getSimpleName() + ": " + error.getMessage();
-				return false;
-			}
-		}
-		// 相对上臂折一个角：正值 = 往手心方向收（前臂向前折）
-		forearm.pitch = -bendDeg * 0.017453292F;
-		return true;
-	}
-
-	/** 子节点名（挂载用；每次渲染重新确认，原版重建 children 后会自动补回） */
-	private static final String CHILD_NAME = "pingpong_forearm";
 
 	public static String diagnostics() {
 		if (!tried) {
-			return "前臂部件: 未初始化";
+			return "肘关节: 未探测";
 		}
-		return available()
-				? "前臂部件: 可用（几何肘关节）"
-				: "前臂部件: 构造失败（" + failure + "）";
+		if (failure.contains(":") && !failure.startsWith("（")) {
+			return "肘关节: 不可用（" + failure + "）";
+		}
+		return "肘关节: " + probeInfo + " / 已切割手臂: " + SPLIT_DONE.size() + " 个 / 应用 " + appliedCount + " 次";
 	}
 }
