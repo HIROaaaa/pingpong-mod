@@ -108,12 +108,17 @@ public final class PingPongModelPose {
 	private static final float EASE_IDLE = 0.10F;
 
 	// ---- 肘部弯曲（大臂/小臂的折角，见 applyElbowBend）----
+	//
+	// 【为什么数值这么大】诊断显示 bend 调用**成功** 3318 次、bendy-lib 可用、注入也命中，
+	// 但玩家看不出弯曲 —— 说明是**幅度不够**而不是没执行（模型手臂只有 11 像素长、
+	// 4×12×4 的方块，几十度的顶点级变形在屏幕上很微弱）。
+	// 所以整体上调：待机 40°、引拍到 115°（接近折成直角），前挥回到 55°。
 	/** 持拍待机的基础弯曲（度）：手臂不会伸得笔直 */
-	private static final float BEND_BASE = 24.0F;
+	private static final float BEND_BASE = 40.0F;
 	/** 引拍时额外增加的弯曲（度）：收拍到身后时小臂收着 */
-	private static final float BEND_WINDUP = 34.0F;
+	private static final float BEND_WINDUP = 75.0F;
 	/** 前挥时回伸的量（度）：出拍要伸出去 */
-	private static final float BEND_FORWARD = 22.0F;
+	private static final float BEND_FORWARD = 60.0F;
 
 	private PingPongModelPose() {
 	}
@@ -142,6 +147,9 @@ public final class PingPongModelPose {
 	private static long diagBendFailures;
 	/** 最近一次出错的异常摘要 */
 	private static String diagLastBendError = "（无）";
+	/** 最近一次实际作用的弯矩（度）与手臂姿态角，便于判断"幅度够不够" */
+	private static float diagLastBendDegrees;
+	private static float diagLastArmPitch;
 
 	/** 供 mixin 在命中注入点时调用 */
 	public static void noteMixinHit() {
@@ -150,10 +158,14 @@ public final class PingPongModelPose {
 
 	/** 一行行的人类可读诊断（交给 /pingpong diag 展示） */
 	public static String diagnostics() {
+		String held = current.active ? "是" : "否";
 		return "Mixin 注入命中: " + diagApplyCalls + " 次（其中持拍 " + diagHoldingCalls + " 帧）\n"
 				+ "bendy-lib 可用: " + (bendAvailable() ? "是" : "否")
 				+ " / 已 initBend 部件: " + initializedParts.size() + " 个\n"
 				+ "bend 调用: 成功 " + diagBendCalls + " 次 / 失败 " + diagBendFailures + " 次\n"
+				+ "最近的弯矩: " + String.format("%.1f", diagLastBendDegrees)
+				+ "° / 大臂俯仰: " + String.format("%.1f", diagLastArmPitch)
+				+ "° / 当前姿态生效: " + held + "\n"
 				+ "最近 bend 错误: " + diagLastBendError;
 	}
 
@@ -252,7 +264,7 @@ public final class PingPongModelPose {
 		st.headYaw = (float) (-angles.bodyYaw * 0.45);
 		st.offArmPitch = (float) (30.0 * windup + 18.0 * forward);
 		st.elbowBend = (float) MathHelper.clamp(
-				BEND_BASE + BEND_WINDUP * windup + strokeBend - BEND_FORWARD * forward, 0.0, 80.0);
+				BEND_BASE + BEND_WINDUP * windup + strokeBend - BEND_FORWARD * forward, 0.0, 130.0);
 	}
 
 	/**
@@ -290,6 +302,8 @@ public final class PingPongModelPose {
 		paddleArm.pitch += toRadians(st.curArmPitch);
 		paddleArm.yaw += toRadians(st.curArmYaw);
 		paddleArm.roll += toRadians(st.curArmRoll);
+		// 诊断用：记录实际应用到持拍臂上的角度（/pingpong diag 会打出来）
+		diagLastArmPitch = st.curArmPitch;
 
 		otherArm.pitch += toRadians(st.curOffArmPitch * 0.5F);
 		otherArm.roll -= toRadians(st.curOffArmPitch * 0.3F);
@@ -314,8 +328,8 @@ public final class PingPongModelPose {
 			hat.yaw += headDelta;
 		}
 
-		applyElbowBend(paddleArm, st.curElbowBend);
-		applyElbowBend(otherArm, st.curElbowBend * 0.55F);
+		applyElbowBend(paddleArm, st.curElbowBend, true);
+		applyElbowBend(otherArm, st.curElbowBend * 0.55F, false);
 		/*
 		 * 【躯干弯曲（用户实测："拉球时上半身和腿部是直接折开的"）】
 		 *
@@ -327,7 +341,7 @@ public final class PingPongModelPose {
 		 * 而不是上半身整体平移了一下。
 		 */
 		float waistBend = Math.abs(st.curBodyYaw) * 0.55F + Math.abs(st.curBodyPitch) * 0.8F;
-		applyElbowBend(body, Math.min(waistBend, 26.0F));
+		applyElbowBend(body, Math.min(waistBend, 26.0F), false);
 	}
 
 	/**
@@ -354,6 +368,13 @@ public final class PingPongModelPose {
 	 * @param bendDegrees 弯曲角度（度），0 = 伸直
 	 */
 	private static void applyElbowBend(ModelPart part, float bendDegrees) {
+		applyElbowBend(part, bendDegrees, false);
+	}
+
+	/**
+	 * @param isArm 是否是"持拍手臂"——只有它的弯矩才写进诊断（否则会被躯干的值覆盖掉）
+	 */
+	private static void applyElbowBend(ModelPart part, float bendDegrees, boolean isArm) {
 		if (Math.abs(bendDegrees) < 0.5F || part == null || !bendAvailable()) {
 			return;
 		}
@@ -368,6 +389,9 @@ public final class PingPongModelPose {
 			helperClass.getMethod("bend", ModelPart.class, float.class, float.class)
 					.invoke(helper, part, toRadians(bendDegrees), 0.0F);
 			diagBendCalls++;
+			if (isArm) {
+				diagLastBendDegrees = bendDegrees;
+			}
 		} catch (Throwable error) {
 			// playerAnimator 换了实现/签名：动作照常，只是不弯。可选依赖的正常降级。
 			// 但要把失败记下来 —— 静默失败正是这次排查最耗时间的地方。
@@ -387,7 +411,6 @@ public final class PingPongModelPose {
 	 */
 	private static final java.util.Map<ModelPart, Boolean> initializedParts =
 			new java.util.WeakHashMap<>();
-
 	/**
 	 * 客户端启动时主动探测一次 bendy-lib。
 	 *
