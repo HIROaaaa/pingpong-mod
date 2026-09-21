@@ -372,5 +372,91 @@ for (const key of ['DRIVE_FOREHAND', 'LOOP_FOREHAND', 'PUSH_FOREHAND', 'CHOP_FOR
 check('每一类击球都有可行的力度档（不会完全打不上台）', noViablePower.length === 0,
   noViablePower.length === 0 ? '四类都有可行档' : `无可行档：${noViablePower.join(', ')}`);
 
+// ------------------------------------------------------------------
+// 9. 【五期 M7.5 现象 B】侧偏必须真正影响出球方向（而不只是变成自旋）
+// ------------------------------------------------------------------
+/*
+ * 【这一段在测什么】M3 把物理换成接触模型后，玩家侧偏（Alt+滚轮）只被喂进「挥拍方向」，
+ * 而挥拍方向的侧向分量会被切向摩擦**吸收成自旋** → 出球水平方向几乎不变，
+ * 于是左右拨滚轮看到的球飞得一模一样（用户实测现象 B）。
+ * 修法是把侧偏拆成：① 挥拍方向（造侧旋）② 出球水平方向直接偏转（看得见）。
+ * 这里镜像 PingPongBallEntity.applySideDeflection()，验证 ② 真的存在、方向对、幅度够。
+ */
+const ENTITY = 'src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java';
+const sideDeflectMax = javaConst(ENTITY, 'PLAYER_SIDE_MAX_DEGREES');
+const swingSideMax = javaConst(ENTITY, 'SWING_SIDE_MAX_DEGREES');
+
+/** 镜像 PingPongBallEntity.applySideDeflection()：只旋转水平方向，速度大小/自旋不变 */
+function applySideDeflection(v, side, speed) {
+  const deg = side * sideDeflectMax;
+  if (Math.abs(deg) < 1e-4 || speed < 1e-4) return v;
+  const fx = v.x;
+  const fz = v.z;
+  const flat = Math.hypot(fx, fz);
+  if (flat < 1e-4) return v;
+  const rad = (deg * Math.PI) / 180;
+  const dx = fx / flat;
+  const dz = fz / flat;
+  const x = dx * Math.cos(rad) - dz * Math.sin(rad);
+  const z = dx * Math.sin(rad) + dz * Math.cos(rad);
+  const nl = Math.hypot(x, z);
+  return v3((x / nl) * flat, v.y, (z / nl) * flat);
+}
+
+console.log('\n=== 【M7.5 现象 B】侧偏 → 出球方向偏转（不是只变成自旋）===');
+console.log(`  出球偏转上限 PLAYER_SIDE_MAX_DEGREES = ${sideDeflectMax}° / 挥拍偏转上限 = ${swingSideMax}°`);
+console.log('  侧偏量    出球速度(vx,vy,vz)       速度大小   自旋大小   第一跳落点距拍面   横向位移   判定');
+
+const stDrive = STROKES.DRIVE_FOREHAND;
+const sideRows = {};
+for (const side of [-1.0, -0.5, 0.0, 0.5, 1.0]) {
+  const n = localNormal(stDrive.tilt);
+  const r = hit(v3(APPROACH, 0, 0), IN_SPIN, n, localSwing(stDrive), stDrive.speed, 0.5, stDrive.surface);
+  const speed = len(r.v);
+  const deviated = applySideDeflection(r.v, side, speed);
+  const f = fly(deviated, r.spin);
+  /*
+   * 【横向位移怎么算】fly() 是沿 +x 的一维模拟，偏转后的侧向分量不在它的模型里。
+   * 但偏转是**刚体旋转**：水平方向转了 θ，所以在"前进 a 格"的同时横向走 a·tanθ。
+   * 于是横向位移 = 第一跳的前进距离 × tan(θ) —— 用观测到的落点距离算，不是循环残留变量。
+   */
+  const forwardDistance = f.ok ? f.land : 0;
+  const lateral = forwardDistance * Math.tan((Math.max(-1, Math.min(1, side)) * sideDeflectMax * Math.PI) / 180);
+  sideRows[side.toFixed(1)] = { deviated, speed, spin: len(r.spin), fly: f, lateral, forwardDistance };
+  console.log(
+    `  side=${String(side.toFixed(1)).padStart(4)}  ` +
+    `${deviated.x.toFixed(3)}/${deviated.y.toFixed(3)}/${deviated.z.toFixed(3)}   ` +
+    `${speed.toFixed(3)}      ${len(r.spin).toFixed(3)}      ${fmt(f.land).padStart(5)}              ` +
+    `${fmt(lateral).padStart(5)}     ${side === 0 ? '基准' : lateral > 0 ? '偏右' : '偏左'}`);
+}
+
+const straight = sideRows['0.0'];
+const fullRight = sideRows['1.0'];
+const fullLeft = sideRows['-1.0'];
+/*
+ * 【断言写法踩坑记录】这三条第一版全挂，原因不在物理、在断言：
+ *   ⑩ 门槛写成 |vz| > 0.05，而 10° 偏转实际给 0.036 —— 门槛不能高于设计值；
+ *   ⑪ 把"方向相反"写成了 (右 < 基准 && 左 > 基准)，正好写反（右偏应该是 +z）；
+ *   ⑬ 用 1e-6 比"半偏=满偏一半"，但满偏时水平方向转了 10°、前向距离会变 0.05 格，
+ *      横向位移本就受这点影响 —— 容差要留出这种几何噪声，不能拿浮点级容差。
+ */
+check('⑩ 侧偏改变出球水平方向（满侧偏横向分量 ≠ 0）',
+  Math.abs(fullRight.deviated.z - straight.deviated.z) > 0.02,
+  `右偏 vz=${fullRight.deviated.z.toFixed(3)} vs 基准 vz=${straight.deviated.z.toFixed(3)}`);
+check('⑪ 左偏与右偏方向相反（同一个滚轮量，球飞向两侧）',
+  fullRight.deviated.z > straight.deviated.z
+  && fullLeft.deviated.z < straight.deviated.z,
+  `右偏 vz−基准 = ${(fullRight.deviated.z - straight.deviated.z).toFixed(3)} / 左偏 vz−基准 = ${(fullLeft.deviated.z - straight.deviated.z).toFixed(3)}`);
+check('⑫ 侧偏不改出球速度大小、不改自旋（只改方向）',
+  Math.abs(fullRight.speed - straight.speed) < 1e-9
+  && Math.abs(fullRight.spin - straight.spin) < 1e-9,
+  `速度 ${fullRight.speed.toFixed(6)} vs ${straight.speed.toFixed(6)}；自旋 ${fullRight.spin.toFixed(6)} vs ${straight.spin.toFixed(6)}`);
+check('⑬ 偏转幅度与侧偏量成正比（0.5 档约等于满档一半，容差 8%）',
+  Math.abs((sideRows['0.5'].lateral / fullRight.lateral) - 0.5) < 0.08,
+  `半偏 ${sideRows['0.5'].lateral.toFixed(4)} 格 / 满偏 ${fullRight.lateral.toFixed(4)} 格 = ${(sideRows['0.5'].lateral / fullRight.lateral).toFixed(4)}`);
+check('⑭ 满侧偏的横向位移肉眼可见（第一跳前 ≥ 0.25 格）',
+  Math.abs(fullRight.lateral) >= 0.25,
+  `满侧偏 ${fullRight.lateral.toFixed(3)} 格（前进 ${fullRight.forwardDistance.toFixed(2)} 格）`);
+
 console.log(`\n===== ${fails === 0 ? '全部通过 ✅' : fails + ' 项不达标 ❌ —— 需要调接触参数/挥拍矢量'} =====`);
 process.exit(fails === 0 ? 0 : 1);

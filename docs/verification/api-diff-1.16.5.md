@@ -1,6 +1,6 @@
 # 1.16.5 API 差异扫描（M5 工作清单）
 
-> 生成时间：2026-09-20 15:12:55
+> 生成时间：2026-09-21 04:14:39
 > 扫描范围：27 个源文件
 
 ## 总览
@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 注册表入口 | **5** | `net.minecraft.registry.Registries.ITEM / BLOCK / ENTITY_TYPE / ITEM_GROUP` → `net.minecraft.util.registry.Registry.ITEM / BLOCK / ENTITY_TYPE / ITEM_GROUP` |
 | 方块设置构造 | **1** | `AbstractBlock.Settings.create()` → `AbstractBlock.Settings.of(Material.XX)` |
-| 玩家眼睛位置 | **9** | `Entity.getEyePos()` → `没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())` |
+| 玩家眼睛位置 | **7** | `Entity.getEyePos()` → `没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())` |
 | 物品设置 | **3** | `new Item.Settings()` → `new Item.Settings().group(...) —— 1.16.5 用 FabricItemGroupBuilder 而不是 ItemGroupEvents` |
 | 创造页签 API | **3** | `FabricItemGroup.builder() / ItemGroupEvents.modifyEntriesEvent` → `FabricItemGroupBuilder.create(id)…build()` |
 | 实体类型构造 | **2** | `FabricEntityTypeBuilder.create(SpawnGroup, factory).dimensions(…).build()` → `1.16.5 同样有 FabricEntityTypeBuilder，但 dimensions 的类型与 build 的泛型不同` |
@@ -18,7 +18,7 @@
 | 网络注册 | **11** | `ServerPlayNetworking.registerGlobalReceiver(id, (server,player,handler,buf,sender)->…)` → `1.16.5 的回调参数个数/顺序不同，且 ClientPlayNetworking 多一个 boolean 参数` |
 | 按键注册 | **3** | `KeyBindingHelper.registerKeyBinding(new KeyBinding(...))` → `1.16.5 同样有 KeyBindingHelper，但 KeyBinding 构造签名不同` |
 
-**合计 46 处**需要版本分支。
+**合计 44 处**需要版本分支。
 
 ## 明细
 
@@ -46,7 +46,7 @@
 | --- | --- |
 | `src/main/java/com/whale/pingpong/block/ModBlocks.java:15` | `AbstractBlock.Settings.create()` |
 
-### 玩家眼睛位置（9 处）
+### 玩家眼睛位置（7 处）
 
 - 1.20.1：`Entity.getEyePos()`
 - 1.16.5：`没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())`
@@ -54,10 +54,8 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:225` | `double spawnY = thrower.getEyePos().y + 0.30;` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:233` | `pos = thrower.getEyePos().add(flat.multiply(0.55));` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:792` | `Vec3d paddlePos = TableGeometry.paddlePoint(player.getEyePos(), player.getRotationVec(1.0F), outward, hand);` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:793` | `if (this.getPos().squaredDistanceTo(player.getEyePos()) < 2.25) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:250` | `double spawnY = thrower.getEyePos().y + 0.30;` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:258` | `pos = thrower.getEyePos().add(flat.multiply(0.55));` |
 | `src/main/java/com/whale/pingpong/item/PingPongPaddleItem.java:112` | `return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand, windUp, inTable);` |
 | `src/main/java/com/whale/pingpong/mixin/CameraMixin.java:70` | `Vec3d eye = focusedEntity.getEyePos();` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:81` | `double eyeY = player.getEyePos().y;` |
@@ -123,8 +121,8 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:317` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:328` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:342` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:353` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
 
 ### 网络注册（11 处）
 

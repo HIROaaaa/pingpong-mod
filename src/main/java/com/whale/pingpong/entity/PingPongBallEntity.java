@@ -98,14 +98,19 @@ public class PingPongBallEntity extends Entity {
 	/** 绝对最低仰角（度）：低于它球会贴着台面走，视觉上像「滚」而不是「飞」 */
 	public static final double MIN_LAUNCH_ELEVATION_DEGREES = 6.0;
 	/**
-	 * 基准起跳仰角：力度 0 → 30°，力度 1 → 14°。
+	 * 基准起跳仰角：力度 0 → 24°，力度 1 → 14°。
 	 *
 	 * 【为什么不沿用「固定 6° 仰角 + 速度决定一切」】击球点只比台面高 0.23 格，
 	 * 而球网在 1.97 格外高出 0.15 格 —— 低速球要过网**必须抬高弧线**，
 	 * 这是真实乒乓球的手法（轻挡要抬、抽杀可以压）。calibrate 脚本对每档力度反解出
-	 * 「过网余量 = 0.12 格」所需的仰角，线性拟合结果就是 30.5° − 16.0°×力度。
+	 * 「过网余量 = 0.12 格」所需的仰角，原始线性拟合为 30.5° − 16.0°×力度。
+	 *
+	 * 【五期 M7.5 现象 D：30° → 24°】30° 是「过网余量 0.12」的反解值，偏保守；
+	 * 用户实测反馈「球被击中后上升的高度有点高」，所以把慢速端的基准弧线压低，
+	 * 改取「过网余量约 0.06 格」的档位。可行性由 {@link #clampElevation} 兜底：
+	 * 压过头（下网）时它会自动把仰角夹回窗口，所以这是**只降不涨**的调整。
 	 */
-	public static final double LAUNCH_BASE_SLOW_DEGREES = 30.0;
+	public static final double LAUNCH_BASE_SLOW_DEGREES = 24.0;
 	/** 力度 1 时的基准仰角（度） */
 	public static final double LAUNCH_BASE_FAST_DEGREES = 14.0;
 	/**
@@ -126,8 +131,28 @@ public class PingPongBallEntity extends Entity {
 	 * 所以给 ±12° 而不是二期的 ±26° —— 幅度再大就把接触模型的标定打乱了。
 	 */
 	public static final double PLAYER_TILT_MAX_DEGREES = 12.0;
-	/** 玩家侧偏最多让挥拍方向偏多少度（Alt+滚轮） */
+	/**
+	 * 玩家侧偏（Alt+滚轮）**直接偏转出球方向**的最大角度（度）。
+	 *
+	 * 【五期 M7.5 现象 B 的修法】M3 换用接触模型后，侧偏只被喂进「挥拍方向」，
+	 * 而挥拍方向的侧向分量会被切向摩擦**吸收成自旋**，出球水平方向几乎不变 ——
+	 * 于是玩家左右拨滚轮，看到的球飞得一模一样。
+	 *
+	 * 现在把侧偏拆成两部分：
+	 * <ul>
+	 *   <li><b>本常量（10°）</b>：直接绕竖直轴旋转出球速度的水平方向 —— 眼睛看得见球被"拨"向哪边；</li>
+	 *   <li>{@link #SWING_SIDE_MAX_DEGREES}（30°）：仍然偏转挥拍方向，负责造侧旋（香蕉球的弧线）。</li>
+	 * </ul>
+	 * 只取滚轮那一部分（{@code s}）参与偏转：正反手固有的 ±3.5° 挥拍偏置是「握姿」，
+	 * 不是玩家在拨拍，不该让球无故横飘。
+	 */
 	public static final double PLAYER_SIDE_MAX_DEGREES = 10.0;
+	/** 玩家侧偏最多让**挥拍方向**偏多少度（Alt+滚轮），负责产生侧旋（与上一条配对使用） */
+	public static final double SWING_SIDE_MAX_DEGREES = 30.0;
+	/** 击球后沿出球方向轻推的距离（格）：只为让球脱离玩家碰撞箱，见现象 A 的注释 */
+	public static final double PADDLE_HIT_NUDGE = 0.15;
+	/** 击球后把球抬高一点（格）：避免贴着地面/台面被判定成"滚球" */
+	public static final double PADDLE_HIT_LIFT = 0.05;
 	/**
 	 * 球台台面的世界高度（格）。与 block/PingPongTableBlock 的碰撞箱一致：
 	 * 台面在方块内 0.75 处、方块放在地面上 → 世界高度约 0.76。
@@ -606,6 +631,39 @@ public class PingPongBallEntity extends Entity {
 	// ==================================================================
 
 	/**
+	 * 把出球速度的**水平方向**按玩家侧偏转一个角度（五期 M7.5 现象 B）。
+	 *
+	 * <p>方向约定与「挥拍向哪边偏」一致：侧偏量 s &gt; 0 时向击球者**右手侧**偏转。
+	 * 旋转公式直接照搬 {@link StrokeType#worldSwing} 里对局部坐标的写法，
+	 * 保证「看到的拍子偏移方向」和「球飞出去偏的方向」是同一个符号。
+	 *
+	 * @param result   夹紧后的接触结果（速度/自旋/接触量）
+	 * @param basis    当拍的前进方向基（只用其水平 forward / right 两轴）
+	 * @param side     玩家侧偏量 −1~1（Alt + 滚轮，只有它参与偏转）
+	 * @param speed    出球速度大小（格/tick）；水平分量会被重新归一化后乘回这个大小
+	 */
+	private static PingPongContact.Result applySideDeflection(PingPongContact.Result result,
+															 StrokeType.Basis basis,
+															 double side, double speed) {
+		double deflectDegrees = side * PLAYER_SIDE_MAX_DEGREES;
+		if (Math.abs(deflectDegrees) < 1.0e-4 || speed < 1.0e-4) {
+			return result;
+		}
+		Vec3d velocity = result.velocity();
+		Vec3d flat = new Vec3d(velocity.x, 0.0, velocity.z);
+		if (flat.lengthSquared() < 1.0e-8) {
+			return result;   // 纯竖直方向的球（理论上不该出现）：没有水平方向可偏
+		}
+		Vec3d flatDir = flat.normalize();
+		double rad = Math.toRadians(deflectDegrees);
+		double x = flatDir.x * Math.cos(rad) - flatDir.z * Math.sin(rad);
+		double z = flatDir.x * Math.sin(rad) + flatDir.z * Math.cos(rad);
+		Vec3d rotated = new Vec3d(x, velocity.y, z).normalize();
+		return new PingPongContact.Result(rotated.multiply(speed), result.spin(),
+				result.slipSpeed(), result.slipping(), result.normalImpulse());
+	}
+
+	/**
 	 * 把自旋向量投影成「上旋量」（沿 topAxis = up × 前进方向 的分量，正 = 上旋）。
 	 * 夹紧试算只需要知道球是上旋还是下旋、有多强，横向分量对纵向落点影响很小。
 	 */
@@ -740,7 +798,12 @@ public class PingPongBallEntity extends Entity {
 		// 玩家用滚轮微调拍面角（±12°），视线俯仰也带一点点
 		double tiltOffset = -t * PLAYER_TILT_MAX_DEGREES + player.getPitch() * AIM_PITCH_WEIGHT;
 		Vec3d normal = stroke.worldNormal(basis, tiltOffset);
-		double sideDegrees = s * PLAYER_SIDE_MAX_DEGREES + (hand == PlayerHand.FOREHAND ? 3.5 : -3.5);
+		// 【M7.5 现象 B】侧偏拆成两处用：
+		//   ① 这里偏转**挥拍方向**（30°/满偏），靠切向摩擦造侧旋；
+		//   ② 下面拿到出球速度后再把**水平方向**直接偏 10°/满偏（见 applySideDeflection），
+		//      让"球拍往哪边拨、球就往哪边去"这件事肉眼可见。
+		// 正反手固有 ±3.5° 是握姿偏置，只参与挥拍、不参与出球偏转。
+		double sideDegrees = s * SWING_SIDE_MAX_DEGREES + (hand == PlayerHand.FOREHAND ? 3.5 : -3.5);
 		Vec3d swing = stroke.worldSwing(basis, sideDegrees);
 
 		Vec3d incomingVelocity = this.physicsVelocity;
@@ -776,6 +839,11 @@ public class PingPongBallEntity extends Entity {
 			}
 		}
 
+		// --- 3. 侧偏：把出球方向的水平分量按滚轮侧偏转一个角（M7.5 现象 B）---
+		// 必须在夹紧**之后**做：夹紧只重设仰角、用的是"水平正前方"这个水平方向，
+		// 若偏转放在夹紧之前，偏转好的方向会被夹紧结果整个覆盖掉（现象 B 看起来没好，就是栽在这）。
+		contactResult = applySideDeflection(contactResult, basis, s, outgoingSpeed);
+
 		this.setPhysicsVelocity(contactResult.velocity());
 		this.setSpin(PingPongPhysics.clampSpin(contactResult.spin()));
 		Vec3d direction = contactResult.velocity().lengthSquared() < 1.0e-9
@@ -787,14 +855,16 @@ public class PingPongBallEntity extends Entity {
 		this.restTicks = 0;
 		this.ownerUuid = player.getUuid();
 
-		// 原版 Entity#move 会把玩家碰撞箱当成墙，贴身球会被自己挡住，
-		// 所以离身体太近的球直接「拨」到击球点位置再飞出去。
-		Vec3d paddlePos = TableGeometry.paddlePoint(player.getEyePos(), player.getRotationVec(1.0F), outward, hand);
-		if (this.getPos().squaredDistanceTo(player.getEyePos()) < 2.25) {
-			this.refreshPositionAndAngles(paddlePos.x, paddlePos.y, paddlePos.z, this.getYaw(), this.getPitch());
-		} else {
-			this.setPosition(this.getPos().add(direction.multiply(0.2)));
-		}
+		// 【M7.5 现象 A：不再把球瞬移到拍面点】
+		// 旧写法是「离眼睛 1.5 格以内 → refreshPositionAndAngles 到 TableGeometry.paddlePoint」，
+		// 而那个点是「前 0.55 + 侧向 ±0.38 + 上 0.45」的固定偏移 —— 于是每次击球，
+		// 球都被拖到身体侧前方再飞出去，看起来就是"先向人物的左边偏移一下再出去"，
+		// 而且正反手的 ±0.38 让左右两侧都往同一边偏（现象 A 与现象 E 同源）。
+		// 现在只沿出球方向轻推 0.15 格：目的是让球脱离玩家碰撞箱（原版 move 会把玩家当墙顶住球），
+		// 水平位置基本不动，视觉上就是"原地被抽出去"。
+		Vec3d nudge = direction.lengthSquared() < 1.0e-9 ? new Vec3d(0.0, 0.0, 0.0) : direction;
+		this.setPosition(this.getPos().add(nudge.multiply(PADDLE_HIT_NUDGE))
+				.add(0.0, PADDLE_HIT_LIFT, 0.0));
 
 		ModNetworking.broadcastBallMotion(this);
 
