@@ -244,18 +244,25 @@ gradlew.bat runServer      :: 起服务端（多人测试）
 > 它是**普通依赖，不打进我们的 jar**（用户拍板：「就直接设置到mod需要的依赖里，
 > 很多其它mod也都有依赖mod，这很正常」），所以要玩家自己装：
 >
-> | 需要装的地方 | 装什么 |
+> | 装在哪 | 装什么 |
 > | --- | --- |
-> | 客户端 | `player-animation-lib-fabric-1.0.2-rc1+1.20.jar` |
-> | 服务端 | **不需要**（playerAnimator 的 mixin 全部在 `client` 段、`mixins: []` 为空，纯客户端库） |
+> | 客户端 | `player-animation-lib-fabric-1.0.2-rc1+1.20.jar`（**必须**） |
+> | 客户端（可选） | `bendy-lib-fabric-4.0.0.jar`（**想看到手臂/躯干"弯曲"就必须装**，48KB） |
+> | 服务端 | **不需要**（两个库的 mixin 全在 `client` 段，纯客户端） |
 >
-> 下载：<https://modrinth.com/mod/playeranimator/version/1.0.2-rc1+1.20-fabric>
-> （1.20.1 这条线上它**只有 beta 版**，没有 release —— 不是我们挑的，是官方就这一个。
-> 开发环境不用手动准备：`build.gradle` 会在配置阶段把它下载到 `build/libs-external/`，
-> 已存在的文件会跳过下载，所以重复构建与离线构建都不需要网络。）
+> 下载：<https://modrinth.com/mod/playeranimator/version/1.0.2-rc1+1.20-fabric> 与
+> <https://modrinth.com/mod/bendy-lib/version/4.0.0-fabric>
+> （playerAnimator 在 1.20.1 这条线上**只有 beta 版**，没有 release —— 不是我们挑的，是官方就这一个。）
 >
-> 忘了装会怎样：Fabric 在启动时直接报「缺少依赖 `player-animator`」，游戏进不去 —— 这是刻意的，
-> 总比进游戏后手臂一动不动、却不知道哪里错了要好。
+> **关于 bendy-lib：** playerAnimator 在启动时检测它是否加载，**没装就把弯曲实现换成空实现** ——
+> 也就是说少了它，动作照常播放，但大臂/小臂不会在肘部打弯、躯干也不会在腰部过渡
+> （这个"静默降级"害我排查了半天：代码明明在调 bend，却一点效果都没有）。
+> 现在本 Mod 会主动检测并在日志里提示，不用你猜。详情见 `CHANGELOG.md` 的 1.9.2 / 1.9.3。
+>
+> 忘了装 playerAnimator 会怎样：Fabric 启动时直接报「缺少依赖 `player-animator`」，游戏进不去。
+>
+> 开发环境不用手动准备 playerAnimator：`build.gradle` 会在配置阶段下载到 `build/libs-external/`
+> （已存在则跳过，离线构建可用）。bendy-lib 开发期没装 —— 所以 `runClient` 里看不到弯曲，属预期。
 
 ### 调试开关
 
