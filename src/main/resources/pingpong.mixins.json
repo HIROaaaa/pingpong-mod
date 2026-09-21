@@ -9,7 +9,8 @@
 		"MouseMixin",
 		"HeldItemRendererMixin",
 		"CameraMixin",
-		"PlayerEntityModelMixin"
+		"PlayerEntityModelMixin",
+		"ModelPartAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -8,6 +8,50 @@
 
 ---
 
+## [1.9.11] - 2026-09-21
+
+**修掉一个只在"装进游戏"时才暴露的错误**：上一版（1.9.10）的几何切割在生产环境**根本没执行**。
+
+用户的诊断把真凶指得很清楚：
+
+```
+mod 版本: 1.9.10
+肘关节: 不可用（ClassNotFoundException: net.minecraft.client.model.ModelPart$Cuboid）
+bend 调用: 0 次
+```
+
+### 根因：字符串反射遇上 remap
+
+上一版用 `Class.forName("net.minecraft.client.model.ModelPart$Cuboid")` 这种**字符串反射**：
+
+- **开发环境**（`runClient`）是 **Yarn 名**，能解析 → 我本地测着"没问题"；
+- **生产环境**（装进游戏）jar 里是 **intermediary 名** → `class_630$class_628`；
+- 于是 `ClassNotFoundException`，切割一次都没跑过。
+
+这是"开发能跑、装进游戏失效"的典型陷阱 —— 而本鲸娘此前所有验证都在开发环境，
+**从没在真正的产物里验证过这条路径**。
+
+### 修法（两条都用"会被重映射"的写法）
+
+1. **类引用替代类名字符串**：`ModelPart.Cuboid.class` 交给 loom 重映射；
+2. **Mixin Accessor 替代字段反射**：新增 `mixin/ModelPartAccessor`
+   （`@Accessor("cuboids")` / `@Accessor("children")`）—— 访问器方法名随 remap 一起翻译，
+   Yarn / intermediary 都能命中。
+
+### 产物级验证（这次做了）
+
+```
+ForearmPart:        net.minecraft.class_630            （ModelPart）
+                    class_630$class_628                （ModelPart$Cuboid）
+                    class_630$class_628.field_3644     （Cuboid.minY）
+ModelPartAccessor:  List<class_630$class_628> pingpong$getCuboids()
+refmap 已登记 ModelPartAccessor
+```
+
+也就是：**产物里的引用已经是 intermediary 名了**，与游戏运行时一致。
+
+---
+
 ## [1.9.10] - 2026-09-21
 
 **照 Mo' Bends 的做法重写肘关节：把上臂方块几何切成两段。**

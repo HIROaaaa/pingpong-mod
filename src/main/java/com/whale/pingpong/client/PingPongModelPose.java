@@ -354,14 +354,12 @@ public final class PingPongModelPose {
 		applyElbowBend(otherArm, st.curElbowBend * 0.55F, false);
 
 		/*
-		 * 【真·肘关节（第九轮）】顶点变形（bend）从 40° 试到 150°，用户答复是
-		 * 「全都没区别」—— 说明变形在这个模型上的视觉贡献约等于 0。
-		 * 所以改成**几何关节**：给手臂真的加一段前臂部件，相对上臂折一个角。
-		 * bend 那条路留着当兜底（关节部件构造失败时仍然走它）。
+		 * 【真·肘关节】顶点变形从 40° 试到 150° 用户答复「全都没区别」——
+		 * 说明变形在这个模型上的视觉贡献约等于 0。
+		 * 现在照 Mo' Bends 的做法走**几何切割**：把上臂方块切成两段、下半段当小臂挂到肘部。
+		 * apply() 内部处理"切过就不重复切"，失败会返回 false（此时上游的 bend 仍作为兜底）。
 		 */
-		if (ForearmPart.available()) {
-			ForearmPart.apply(paddleArm, !offHandLeft, st.curElbowBend);
-		}
+		ForearmPart.apply(paddleArm, !offHandLeft, st.curElbowBend);
 
 		/*
 		 * 【躯干弯曲（用户实测："拉球时上半身和腿部是直接折开的"）】
