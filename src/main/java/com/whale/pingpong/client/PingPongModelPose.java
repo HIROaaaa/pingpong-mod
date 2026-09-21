@@ -1,10 +1,15 @@
 package com.whale.pingpong.client;
 
+import com.whale.pingpong.util.ArmPose;
 import com.whale.pingpong.util.PlayerHand;
 import com.whale.pingpong.util.StrokeType;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.util.math.MathHelper;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 乒乓球动作→**玩家模型骨骼**的姿态（五期 M6，第二轮按实测反馈重做）。
@@ -14,113 +19,101 @@ import net.minecraft.util.math.MathHelper;
  * 玩家的胳膊、身体纹丝不动。用户要的是「胳膊身体可以弯曲的那种动作，和那些动作优化 mod 一样」，
  * 所以动作必须落到**骨骼**上（见 {@code mixin/PlayerEntityModelMixin}）。
  *
- * <h2>第一版为什么"只是手臂微微动了一下"（用户实测反馈）</h2>
- * 三个原因，都在这一版里改掉了：
+ * <h2>第二版修了什么（都来自实测反馈）</h2>
  * <ol>
- *   <li><b>幅度太小</b>：第一版给的角度全是 8°~30° 量级，而玩家模型的手臂本身就有 90° 级的
- *       原版摆动 —— 这点增量在视觉上等于没动。现在整体放大到 <b>45°~85°</b> 量级；</li>
- *   <li><b>只有挥拍那 8 tick 有动作</b>：用户按住左键蓄力时手臂不动，松手瞬间才有一下。
- *       现在<b>蓄力阶段就推进引拍</b>（见下面 phase 的分支），引拍到不到位取决于蓄力进度，
- *       松手后从"已经引好拍"的位置进入前挥 —— 这正是用户要的
- *       「在蓄力拉球的时候就有手往后引拍的动作」；</li>
- *   <li><b>正反手不是镜像</b>：第一版只把侧向分量乘了 ±1，俯仰（前后）方向两只手一样，
- *       所以看起来"正反手反了/没区别"。现在 yaw 与 roll 都按手型镜像。</li>
+ *   <li><b>幅度太小</b>（"只是手臂微微动了一下"）：第一版 8°~30°，而原版走路摆手本身就有 40°；
+ *       现在摆幅 90°（引拍）+ 145°（挥拍）；</li>
+ *   <li><b>方向做反了</b>（"正反手好像反了"）：靠 {@code tools/pose_solver.js} 反解修正，
+ *       现在待机手在身前、引拍手在身后、前挥手回身前，{@code tools/pose_direction_check.js} 守住；</li>
+ *   <li><b>蓄力时没有引拍</b>（用户点名要的）：蓄力进度直接驱动引拍，松手从已引好的姿态继续挥；</li>
+ *   <li><b>手臂不会弯</b>（"要能体现出大臂和小臂的弯曲"）：走 playerAnimator 的 bend 接口
+ *       （顶点级形变，底层 bendy-lib），见 {@link #applyElbowBend}；</li>
+ *   <li><b>姿态是全局静态的</b>：多个玩家会互相覆写彼此的缓动状态 —— 现在改成
+ *       <b>按玩家 UUID 隔离</b>（{@link #states}），联机时每个人各算各的。</li>
  * </ol>
- *
- * <h2>三段式与缓动</h2>
- * <pre>
- *   蓄力（按住左键）：引拍进度 = 蓄力比例，手往后上方拉，蓄满时引拍到最大
- *   松手瞬间：        进入挥拍，从当前（引好拍的）姿态出发前挥 —— 不做瞬间跳变
- *   挥拍 8 tick：     前挥（快，0.55）→ 随挥（缓，0.22）
- * </pre>
  */
 public final class PingPongModelPose {
 
-	// ------------------------------------------------------------------
-	// 目标姿态字段（每次由 update() 重算）
-	// ------------------------------------------------------------------
-	private static float armPitch;
-	private static float armYaw;
-	private static float armRoll;
-	private static float bodyPitch;
-	private static float bodyYaw;
-	private static float headYaw;
-	private static float offArmPitch;
-	private static boolean active;
+	/** 每个玩家各存一份姿态状态（目标 + 缓动中的当前值） */
+	private static final class PoseState {
+		float armPitch;
+		float armYaw;
+		float armRoll;
+		float bodyPitch;
+		float bodyYaw;
+		float headYaw;
+		float offArmPitch;
+		float elbowBend;
 
-	// 当前值（缓动后的实际输出）
-	private static float curArmPitch;
-	private static float curArmYaw;
-	private static float curArmRoll;
-	private static float curBodyPitch;
-	private static float curBodyYaw;
-	private static float curHeadYaw;
-	private static float curOffArmPitch;
+		float curArmPitch;
+		float curArmYaw;
+		float curArmRoll;
+		float curBodyPitch;
+		float curBodyYaw;
+		float curHeadYaw;
+		float curOffArmPitch;
+		float curElbowBend;
+		boolean active;
+
+		boolean isRest() {
+			return !active
+					&& Math.abs(curArmPitch) < 0.01F && Math.abs(curArmYaw) < 0.01F
+					&& Math.abs(curArmRoll) < 0.01F && Math.abs(curBodyPitch) < 0.01F
+					&& Math.abs(curBodyYaw) < 0.01F && Math.abs(curHeadYaw) < 0.01F
+					&& Math.abs(curOffArmPitch) < 0.01F && Math.abs(curElbowBend) < 0.01F;
+		}
+
+		/** 把目标姿态全部清零（空手时回到原版） */
+		void resetTargets() {
+			armPitch = 0.0F;
+			armYaw = 0.0F;
+			armRoll = 0.0F;
+			bodyPitch = 0.0F;
+			bodyYaw = 0.0F;
+			headYaw = 0.0F;
+			offArmPitch = 0.0F;
+			elbowBend = 0.0F;
+		}
+	}
+
+	private static final Map<UUID, PoseState> states = new HashMap<>();
+
+	/** 最近一次 update() 算姿态的玩家；apply() 据此取对应那份状态 */
+	private static PoseState current = new PoseState();
 
 	// ------------------------------------------------------------------
 	// 动作幅度常量（度）
 	//
 	// 【符号与方向：由 tools/pose_solver.js 反解后定下，不再靠手感猜】
-	// 模型部件：pitch 绕 X 轴 —— **正值 = 手往身后抬，负值 = 手往身前伸**；
-	// yaw 绕 Y 轴、roll 绕 Z 轴。手臂只有"绕肩旋转"一个自由度，手恒在过肩的竖直面内，
-	// 所以**横向扫动必须靠躯干转体（bodyYaw）**来给，这也是真人打球会转腰的原因。
+	// pitch 以 0° = 手臂自然下垂为原点：**正值 = 手往身后抬，负值 = 手往身前伸**。
 	// handedSign = 正手 +1 / 反手 −1，作用在 yaw/roll/bodyYaw 上 → 两只手镜像。
 	// 实测若发现左右整体反了，把 HANDED_FLIP 改成 -1 一次翻过来，不必逐个改数字。
-	//
-	// 【为什么幅度要这么大】用户第一轮反馈「只是手臂微微动了一下」：第一版给的是 8°~30°，
-	// 而原版走路摆手本身就有 40° 量级 —— 那点增量视觉上等于没动。
-	// 现在待机抬臂 65°、引拍到 +60°、前挥到 −88°，**前后摆幅 148°**，一眼就能看出来。
 	// ------------------------------------------------------------------
 
 	/** 手型符号总开关：实测左右反了就改成 -1.0F */
 	private static final float HANDED_FLIP = 1.0F;
 
-	/**
-	 * 持拍待机：手臂抬到身前约 30°（球拍举在身前但不高举 —— 抬太高反而不像"准备击球"）。
-	 * 【标定基准】pitch 以 0° = 手臂自然垂在身侧为原点：
-	 *   负值 → 手往身前抬；正值 → 手往身后抬。
-	 */
-	private static final float READY_ARM_PITCH = -30.0F;
-	/** 待机的轻微外展（乘手型符号） */
-	private static final float READY_ARM_ROLL = 10.0F;
-
-	/**
-	 * 引拍：手臂往后上方拉（−30° → +60°，**整整 90° 的引拍行程**）。
-	 * 这是**蓄力阶段就在推进**的动作 —— 用户要的「蓄力拉球时就有手往后引拍的效果」。
-	 */
-	private static final float WINDUP_PITCH = 90.0F;
-	/** 引拍时的收臂（乘手型符号） */
-	private static final float WINDUP_ROLL = -12.0F;
-	/** 引拍时的转体（乘手型符号）：正手引拍时肩膀往后转 */
-	private static final float WINDUP_BODY_YAW = -24.0F;
-	/** 引拍时躯干略后仰 */
-	private static final float WINDUP_BODY_PITCH = -7.0F;
-
-	/** 前挥：手臂猛往前伸（+60° → −85°，**扫过 145°**） */
-	private static final float FORWARD_PITCH = -55.0F;
-	/** 前挥时的转体（乘手型符号） */
-	private static final float FORWARD_BODY_YAW = 30.0F;
-	/** 前挥时躯干前压 */
-	private static final float FORWARD_BODY_PITCH = 10.0F;
-
-	/** 随挥：继续走一点然后收住 */
-	private static final float FOLLOW_PITCH = -12.0F;
-
-	/** 击球类型的形态差异（叠在基础三段式上） */
-	private static final float LOOP_DROP = -18.0F;      // 拉弧圈：引拍更低更沉（兜球）
-	private static final float CHOP_LIFT = 28.0F;       // 削球：引拍更高（举到肩上）
-	private static final float PUSH_LOW = 14.0F;        // 搓球：手臂压低往前推
-
-	/** 台内前倾（需求 19）：身体往台内压 */
-	private static final float IN_TABLE_LEAN = 15.0F;
-
-	// 缓动系数：引拍慢（做出蓄势感） / 触球快（出拍干脆） / 随挥缓（收得住）
+	/** 缓动系数：引拍慢（做出蓄势感） / 触球快（出拍干脆） / 随挥缓（收得住） */
 	private static final float EASE_WINDUP = 0.30F;
 	private static final float EASE_FORWARD = 0.62F;
 	private static final float EASE_FOLLOW = 0.26F;
 	private static final float EASE_IDLE = 0.18F;
 
+	// ---- 肘部弯曲（大臂/小臂的折角，见 applyElbowBend）----
+	/** 持拍待机的基础弯曲（度）：手臂不会伸得笔直 */
+	private static final float BEND_BASE = 24.0F;
+	/** 引拍时额外增加的弯曲（度）：收拍到身后时小臂收着 */
+	private static final float BEND_WINDUP = 34.0F;
+	/** 前挥时回伸的量（度）：出拍要伸出去 */
+	private static final float BEND_FORWARD = 22.0F;
+
 	private PingPongModelPose() {
+	}
+
+	/** 退出世界时清空（避免 UUID 表越积越大） */
+	public static void clear() {
+		states.clear();
+		current = new PoseState();
 	}
 
 	// ------------------------------------------------------------------
@@ -129,15 +122,19 @@ public final class PingPongModelPose {
 
 	/**
 	 * 由客户端每帧调用（渲染前），根据「手里拿没拿球拍 + 在蓄力还是在挥拍」算出目标姿态。
+	 * 算完后 {@link #apply} 会取用同一份状态，所以两者必须成对调用（见 PlayerEntityModelMixin）。
 	 */
 	public static void update(AbstractClientPlayerEntity player) {
+		PoseState st = states.computeIfAbsent(player.getUuid(), key -> new PoseState());
+		current = st;
+
 		boolean holding = player.getMainHandStack().isOf(com.whale.pingpong.item.ModItems.PINGPONG_PADDLE);
 		if (!holding) {
-			active = false;
-			targetAll(0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
+			st.active = false;
+			st.resetTargets();
 			return;
 		}
-		active = true;
+		st.active = true;
 
 		boolean local = player == net.minecraft.client.MinecraftClient.getInstance().player;
 		PaddlePoseCache.Pose cached = PaddlePoseCache.get(player.getUuid());
@@ -147,138 +144,165 @@ public final class PingPongModelPose {
 		double tiltForPose = local ? PingPongClientState.tilt() : cached.tilt;
 		float charge = local ? (float) PingPongClientState.chargeRatio() : 0.0F;
 
-		float handed = (hand == PlayerHand.FOREHAND ? 1.0F : -1.0F) * HANDED_FLIP;
+		// ---- 姿态角度统一由 util/ArmPose 给出（与击球判定同一套数学，用户第 4 条反馈）----
+		//
+		// 【为什么不再在本类里写角度】角度原先只活在这个渲染类里，而服务端判定用的是
+		// TableGeometry.paddlePoint 的一组**固定偏移** —— 于是"看到的拍子"与"判定用的拍子"分家，
+		// 玩家会觉得"明明够到了却没打到"。现在两端共用 ArmPose：客户端拿它摆动画，
+		// 服务端拿它定判定点，只传参数（手型 + 击球类型 + 力度），服务端权威不受影响。
+		double windup;
+		double forward;
+		double follow;
+		if (swing <= 0.0F) {
+			// 蓄力阶段：推进引拍（用户要的"蓄力时就有往后引拍的动作"）。
+			// 用 sqrt 让前半程就走得明显（线性的话前半程几乎看不出来）。
+			windup = Math.sqrt(MathHelper.clamp(charge, 0.0F, 1.0F));
+			forward = 0.0;
+			follow = 0.0;
+		} else if (swing < 0.35F) {
+			windup = 1.0;          // 松手瞬间仍保持引拍姿态，不做跳变
+			forward = 0.0;
+			follow = 0.0;
+		} else if (swing < 0.75F) {
+			windup = 1.0 - (swing - 0.35F) / 0.40F;
+			forward = (swing - 0.35F) / 0.40F;
+			follow = 0.0;
+		} else {
+			windup = 0.0;
+			forward = 1.0;
+			follow = (swing - 0.75F) / 0.25F;
+		}
 
-		// ---- 姿态 = 待机基础 + 当前阶段的动作 ----
-		float pitch = READY_ARM_PITCH;
-		float yaw = 0.0F;
-		float roll = READY_ARM_ROLL * handed;
-		float bodyPitch = 0.0F;
-		float bodyYaw = 0.0F;
-		float headYaw = 0.0F;
-		float offArm = 0.0F;
+		StrokeType s = stroke == null ? StrokeType.DRIVE_FOREHAND : stroke;
+		ArmPose.Angles angles = ArmPose.anglesFor(s, hand == PlayerHand.FOREHAND, windup, forward, follow);
 
+		float pitch = (float) angles.pitch;
 		// 球拍俯仰也让手臂跟着变，这样"拍面角度"在第三人称一眼可见（需求 0）
 		pitch -= (float) tiltForPose * 12.0F;
 
-		if (swing <= 0.0F && charge > 0.0F) {
-			// ---- 蓄力阶段：推进引拍（用户要的"蓄力时就有往后引拍的动作"）----
-			float w = MathHelper.clamp(charge, 0.0F, 1.0F);
-			// 用 sqrt 让引拍在蓄力前半程就走得比较明显（线性的话前半程几乎看不出来）
-			float windup = (float) Math.sqrt(w);
-			StrokeType s = previewStrokeFor(hand, charge);
-
-			pitch += (WINDUP_PITCH + strokeWindupPitch(s)) * windup;
-			roll += WINDUP_ROLL * windup * handed;
-			bodyYaw += WINDUP_BODY_YAW * windup * handed;
-			bodyPitch += WINDUP_BODY_PITCH * windup;
-			headYaw += -WINDUP_BODY_YAW * 0.45F * windup * handed;
-			offArm += 30.0F * windup;
-		} else if (swing > 0.0F) {
-			// ---- 挥拍阶段：从"已经引好拍"的位置进入前挥 → 随挥 ----
-			// 三段式比例与 PingPongAnimations 一致（0.35 / 0.75），两个视角的动作才对得上。
-			float windup;
-			float forward;
-			float follow;
-			if (swing < 0.35F) {
-				windup = 1.0F;          // 松手瞬间仍保持引拍姿态
-				forward = 0.0F;
-				follow = 0.0F;
-			} else if (swing < 0.75F) {
-				windup = 1.0F - (swing - 0.35F) / 0.40F;
-				forward = (swing - 0.35F) / 0.40F;
-				follow = 0.0F;
-			} else {
-				windup = 0.0F;
-				forward = 1.0F;
-				follow = (swing - 0.75F) / 0.25F;
-			}
-			StrokeType s = stroke == null ? StrokeType.DRIVE_FOREHAND : stroke;
-
-			pitch += (WINDUP_PITCH + strokeWindupPitch(s)) * windup
-					+ FORWARD_PITCH * forward + FOLLOW_PITCH * follow;
-			roll += (WINDUP_ROLL * windup) * handed;
-			bodyYaw += (WINDUP_BODY_YAW * windup + FORWARD_BODY_YAW * forward) * handed;
-			bodyPitch += WINDUP_BODY_PITCH * windup + FORWARD_BODY_PITCH * forward;
-			headYaw += (-WINDUP_BODY_YAW * windup * 0.45F - FORWARD_BODY_YAW * 0.35F * forward) * handed;
-			offArm += 30.0F * windup + 18.0F * forward;
+		/*
+		 * 【肘部弯曲】用户要的「大臂和小臂的那种弯曲」，三个来源叠加：
+		 *   ① 基础弯曲 24°：持拍时手臂本来就不会伸得笔直；
+		 *   ② 引拍越多越弯（最多 +34°）：收拍到身后时小臂是收着的，这是"引拍"看起来像引拍的关键；
+		 *   ③ 击球类型差异：搓球要压得低而**直**（贴着台面推），弧圈/削球弯得多（蓄力兜起来）。
+		 */
+		double strokeBend;
+		if (s == StrokeType.PUSH_FOREHAND || s == StrokeType.PUSH_BACKHAND) {
+			strokeBend = -14.0;      // 搓球：手臂放低、几乎伸直往前推
+		} else if (s == StrokeType.LOOP_FOREHAND || s == StrokeType.LOOP_BACKHAND) {
+			strokeBend = 12.0;       // 拉球：兜得更弯
+		} else if (s == StrokeType.CHOP_FOREHAND || s == StrokeType.CHOP_BACKHAND) {
+			strokeBend = 8.0;
+		} else {
+			strokeBend = 0.0;
 		}
 
-		targetAll(pitch, yaw, roll, bodyPitch, bodyYaw, headYaw, offArm);
+		st.armPitch = pitch;
+		st.armYaw = (float) angles.yaw;
+		st.armRoll = (float) angles.roll;
+		st.bodyPitch = (float) angles.bodyPitch;
+		st.bodyYaw = (float) angles.bodyYaw;
+		st.headYaw = (float) (-angles.bodyYaw * 0.45);
+		st.offArmPitch = (float) (30.0 * windup + 18.0 * forward);
+		st.elbowBend = (float) MathHelper.clamp(
+				BEND_BASE + BEND_WINDUP * windup + strokeBend - BEND_FORWARD * forward, 0.0, 80.0);
 	}
 
-	/** 击球类型的引拍形态差异（弧圈沉、削球高、搓球低、攻球平）。 */
-	private static float strokeWindupPitch(StrokeType stroke) {
-		if (stroke == null) {
-			return 0.0F;
-		}
-		switch (stroke) {
-			case LOOP_FOREHAND:
-			case LOOP_BACKHAND:
-				return LOOP_DROP;
-			case CHOP_FOREHAND:
-			case CHOP_BACKHAND:
-				return CHOP_LIFT;
-			case PUSH_FOREHAND:
-			case PUSH_BACKHAND:
-				return PUSH_LOW;
-			default:
-				return 0.0F;
-		}
-	}
-
-	/** 蓄力时预览：这一拍最终会打成哪一类（与 {@code StrokeType.select} 同规则）。 */
-	private static StrokeType previewStrokeFor(PlayerHand hand, float charge) {
-		return StrokeType.select(hand == PlayerHand.BACKHAND, false, charge);
-	}
-
-	private static void targetAll(float pitch, float yaw, float roll, float body, float bodyTurn,
-								  float head, float offArm) {
-		armPitch = pitch;
-		armYaw = yaw;
-		armRoll = roll;
-		bodyPitch = body;
-		bodyYaw = bodyTurn;
-		headYaw = head;
-		offArmPitch = offArm;
-	}
-
-	/** 把当前姿态缓动一步并写进模型部件。 */
+	/**
+	 * 把**最近一次 update() 那个玩家**的姿态缓动一步并写进模型部件。
+	 * 由 {@code PlayerEntityModelMixin} 紧跟在 update() 之后调用，两者成对。
+	 */
 	public static void apply(ModelPart rightArm, ModelPart leftArm, ModelPart body, ModelPart head,
-							 boolean offHandLeft, float ease) {
+							 ModelPart hat, boolean offHandLeft, float ease) {
+		PoseState st = current;
 		float k = MathHelper.clamp(ease, 0.0F, 1.0F);
-		if (!active && Math.abs(curArmPitch) < 0.01F && Math.abs(curArmYaw) < 0.01F
-				&& Math.abs(curArmRoll) < 0.01F && Math.abs(curBodyPitch) < 0.01F
-				&& Math.abs(curBodyYaw) < 0.01F && Math.abs(curHeadYaw) < 0.01F
-				&& Math.abs(curOffArmPitch) < 0.01F) {
+		if (st.isRest()) {
 			return;   // 完全回到原版姿态后就不再碰模型（空手走路保持原样）
 		}
 
-		curArmPitch = ease(curArmPitch, armPitch, k);
-		curArmYaw = ease(curArmYaw, armYaw, k);
-		curArmRoll = ease(curArmRoll, armRoll, k);
-		curBodyPitch = ease(curBodyPitch, bodyPitch, k);
-		curBodyYaw = ease(curBodyYaw, bodyYaw, k);
-		curHeadYaw = ease(curHeadYaw, headYaw, k);
-		curOffArmPitch = ease(curOffArmPitch, offArmPitch, k);
+		st.curArmPitch = ease(st.curArmPitch, st.armPitch, k);
+		st.curArmYaw = ease(st.curArmYaw, st.armYaw, k);
+		st.curArmRoll = ease(st.curArmRoll, st.armRoll, k);
+		st.curBodyPitch = ease(st.curBodyPitch, st.bodyPitch, k);
+		st.curBodyYaw = ease(st.curBodyYaw, st.bodyYaw, k);
+		st.curHeadYaw = ease(st.curHeadYaw, st.headYaw, k);
+		st.curOffArmPitch = ease(st.curOffArmPitch, st.offArmPitch, k);
+		st.curElbowBend = ease(st.curElbowBend, st.elbowBend, k);
 
 		ModelPart paddleArm = offHandLeft ? leftArm : rightArm;
 		ModelPart otherArm = offHandLeft ? rightArm : leftArm;
 
-		paddleArm.pitch += toRadians(curArmPitch);
-		paddleArm.yaw += toRadians(curArmYaw);
-		paddleArm.roll += toRadians(curArmRoll);
+		paddleArm.pitch += toRadians(st.curArmPitch);
+		paddleArm.yaw += toRadians(st.curArmYaw);
+		paddleArm.roll += toRadians(st.curArmRoll);
 
-		otherArm.pitch += toRadians(curOffArmPitch * 0.5F);
-		otherArm.roll -= toRadians(curOffArmPitch * 0.3F);
+		otherArm.pitch += toRadians(st.curOffArmPitch * 0.5F);
+		otherArm.roll -= toRadians(st.curOffArmPitch * 0.3F);
 
-		body.pitch += toRadians(curBodyPitch);
-		body.yaw += toRadians(curBodyYaw);
-		head.yaw += toRadians(curHeadYaw - curBodyYaw * 0.5F);
+		body.pitch += toRadians(st.curBodyPitch);
+		body.yaw += toRadians(st.curBodyYaw);
+
+		/*
+		 * 【头部与头发必须一起转（用户实测："只有头和头发分离了，头发没有跟着动"）】
+		 *
+		 * 原因不在头发坏了，而在**原版把 hat（头发/帽层）的旋转复制自 head** ——
+		 * BipedEntityModel.setAngles 末尾写着 head.copyTransform(hat)（1.20.1 是 copyTransform）。
+		 * 我们是在那个复制**之后**才改 head.yaw，于是 head 转了、hat 还留在原角度，
+		 * 两层皮肤就此错位。修法：把同一个增量也加到 hat 上。
+		 *
+		 * 【为什么不能只改 hat.pitch/hat.yaw】hat 的枢轴与 head 相同（都是 (0,0,0)），
+		 * 所以同样的增量等价于"一起转"，不需要复制全部字段。
+		 */
+		float headDelta = toRadians(st.curHeadYaw - st.curBodyYaw * 0.5F);
+		head.yaw += headDelta;
+		if (hat != null) {
+			hat.yaw += headDelta;
+		}
+
+		applyElbowBend(paddleArm, st.curElbowBend);
+		applyElbowBend(otherArm, st.curElbowBend * 0.55F);
+		/*
+		 * 【躯干弯曲（用户实测："拉球时上半身和腿部是直接折开的"）】
+		 *
+		 * 原版躯干是一个绕腰旋转的**刚体方块**，所以弯腰时上半身和腿之间是"折"而不是"弯"，
+		 * 看起来像两块木板拼的。手臂能弯是因为走了 bend 接口 —— 躯干同理：
+		 * 把身体也在腰部弯一点，腰胯之间就有了过渡。
+		 *
+		 * 弯曲量跟着转体走（转体越多弯得越多），这样"拉球时转腰"看起来是身体在拧，
+		 * 而不是上半身整体平移了一下。
+		 */
+		float waistBend = Math.abs(st.curBodyYaw) * 0.55F + Math.abs(st.curBodyPitch) * 0.8F;
+		applyElbowBend(body, Math.min(waistBend, 26.0F));
 	}
 
-	private static float ease(float current, float target, float k) {
-		return current + (target - current) * k;
+	/**
+	 * 让手臂在**肘部**弯曲（大臂/小臂的折角）。
+	 *
+	 * <p>普通 ModelPart 只会绕枢轴**刚体旋转**，做不出"手臂打弯"；真正的形变要靠
+	 * playerAnimator 的 bend 接口（顶点级重排，底层 bendy-lib）。
+	 * 这里用反射调用，理由是：<b>bendy-lib 是可选的</b> —— 没装时 playerAnimator 内部是
+	 * 一个空实现，直接引用它的类不会崩，但用反射写就不必把 playerAnimator 的编译期依赖
+	 * 泄漏到更多地方，也方便将来它改签名时只在这里改。
+	 *
+	 * @param bendDegrees 弯曲角度（度），0 = 伸直
+	 */
+	private static void applyElbowBend(ModelPart arm, float bendDegrees) {
+		if (Math.abs(bendDegrees) < 0.5F || arm == null) {
+			return;
+		}
+		try {
+			Class<?> helperClass = Class.forName("dev.kosmx.playerAnim.impl.animation.IBendHelper");
+			Object helper = helperClass.getField("INSTANCE").get(null);
+			helperClass.getMethod("bend", ModelPart.class, float.class, float.class)
+					.invoke(helper, arm, toRadians(bendDegrees), 0.0F);
+		} catch (Throwable ignored) {
+			// 没装 bendy-lib / playerAnimator 换了实现：动作照常，只是手臂不弯。
+			// 这是可选依赖的正常降级，不该刷日志、更不该崩。
+		}
+	}
+
+	private static float ease(float currentValue, float target, float k) {
+		return currentValue + (target - currentValue) * k;
 	}
 
 	private static float toRadians(float degrees) {
@@ -287,14 +311,11 @@ public final class PingPongModelPose {
 
 	/** 当前这一帧的缓动系数（引拍慢 / 触球快 / 随挥缓）。 */
 	public static float easeFor(float swingProgress) {
-		if (!active) {
+		if (!current.active) {
 			return EASE_IDLE;
 		}
 		if (swingProgress <= 0.0F) {
 			return EASE_WINDUP;   // 蓄力中：引拍要慢慢来，才像"蓄势"
-		}
-		if (swingProgress < 0.35F) {
-			return EASE_FORWARD;
 		}
 		if (swingProgress < 0.75F) {
 			return EASE_FORWARD;

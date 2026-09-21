@@ -56,8 +56,10 @@ public class PlayerEntityModelMixin {
 		// 所以先转 Object 再转目标类型 —— 这是 mixin 里访问自身实例的常规写法。
 		BipedEntityModel<?> model = (BipedEntityModel<?>) (Object) this;
 		PingPongModelPose.update((AbstractClientPlayerEntity) entity);
+		// hat 必须一起传：原版把 hat（头发/帽层）的旋转**复制自 head**，
+		// 我们改 head 之后不带上 hat，就会出现"头和头发分离"（用户实测反馈）。
 		PingPongModelPose.apply(
-				model.rightArm, model.leftArm, model.body, model.head,
+				model.rightArm, model.leftArm, model.body, model.head, model.hat,
 				false,   // 球拍永远在主手（副手拿球是"发球"用的），需要时再按 hand 交换
 				PingPongModelPose.easeFor(currentSwingProgress(entity)));
 	}

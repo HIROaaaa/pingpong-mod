@@ -61,6 +61,7 @@ public class PingPongClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			PingPongClientState.reset();
 			PaddlePoseCache.clear();
+			PingPongModelPose.clear();
 			attackKeyWasDown = false;
 			useKeyWasDown = false;
 			swingCooldown = 0;

@@ -4,6 +4,7 @@ import com.whale.pingpong.PingPongMod;
 import com.whale.pingpong.entity.PingPongBallEntity;
 import com.whale.pingpong.item.PingPongPaddleItem;
 import com.whale.pingpong.server.PaddlePoseTracker;
+import com.whale.pingpong.util.ArmPose;
 import com.whale.pingpong.util.PlayerHand;
 import com.whale.pingpong.util.StrokeType;
 import com.whale.pingpong.util.TableGeometry;
@@ -333,14 +334,23 @@ public final class ModNetworking {
 		float power = clampPose(charge);
 		StrokeType stroke = StrokeType.select(hand == PlayerHand.BACKHAND, rightButton, power);
 
-		// 击球点：由「球台朝向 + 玩家站在球台哪一边」决定，正反手各在一侧（需求 4 / 6）。
-		// 【需求 12】带引拍进度：蓄力越深，击球点越靠后越靠下、还绕肘画弧 ——
-		// 判定用的点必须与动作显示的点一致，否则会出现"看着够到了却没打到"。
+		// 击球点：**跟着动作里球拍的实际位置**（用户第 4 条反馈：「点位要跟着动画里球拍的位置更改，
+		// 不要固定在一个地方」）。
+		//
+		// 【为什么不再用固定偏移】以前判定点是 TableGeometry.paddlePoint 的一组写死偏移
+		// （前 0.55 / 侧 ±0.38 / 上 0.45），而动画早就把手臂摆到别处了 —— 于是"看到的拍子"
+		// 与"判定的拍子"分家，玩家会觉得"明明够到了却没打到"。
+		// 现在判定点由 util/ArmPose 按「击球类型 + 力度 + 手型」算出手臂姿态后再取球拍中心，
+		// 与客户端摆动画用的是**同一个函数**，两边天然对齐。
+		//
+		// 引拍进度取蓄力力度：力度越大，这一拍挥得越出去，拍子也确实落在更靠前的位置。
 		Vec3d eyePos = player.getEyePos();
 		Vec3d look = player.getRotationVec(1.0F);
 		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
-		boolean inTable = TableGeometry.inTable(player.getWorld(), player.getPos());
-		Vec3d paddlePos = TableGeometry.paddlePoint(eyePos, look, outward, hand, power, inTable);
+		ArmPose.Angles paddlePose = ArmPose.anglesFor(stroke, hand == PlayerHand.FOREHAND,
+				power * 0.35, 0.65 + 0.35 * power, 0.0);
+		Vec3d paddlePos = ArmPose.paddleWorld(eyePos, look, outward, paddlePose,
+				hand == PlayerHand.FOREHAND);
 
 		Box searchBox = Box.from(paddlePos).expand(HIT_REACH);
 		PingPongBallEntity target = null;

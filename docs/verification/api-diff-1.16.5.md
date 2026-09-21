@@ -1,7 +1,7 @@
 # 1.16.5 API 差异扫描（M5 工作清单）
 
-> 生成时间：2026-09-21 05:06:36
-> 扫描范围：29 个源文件
+> 生成时间：2026-09-21 09:48:57
+> 扫描范围：30 个源文件
 
 ## 总览
 
@@ -59,8 +59,8 @@
 | `src/main/java/com/whale/pingpong/item/PingPongPaddleItem.java:112` | `return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand, windUp, inTable);` |
 | `src/main/java/com/whale/pingpong/mixin/CameraMixin.java:70` | `Vec3d eye = focusedEntity.getEyePos();` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:81` | `double eyeY = player.getEyePos().y;` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:339` | `Vec3d eyePos = player.getEyePos();` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:389` | `Vec3d eye = player.getEyePos();` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:347` | `Vec3d eyePos = player.getEyePos();` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:399` | `Vec3d eye = player.getEyePos();` |
 
 ### 物品设置（3 处）
 
@@ -133,13 +133,13 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:14` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:74` | `ServerPlayNetworking.registerGlobalReceiver(ACTION_CHANNEL, (server, player, handler, buf, responseSender) -> ` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:87` | `ClientPlayNetworking.registerGlobalReceiver(POSE_CHANNEL, (client, handler, buf, responseSender) -> {` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:99` | `ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:198` | `ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:220` | `java.util.Set<ServerPlayerEntity> receivers = new java.util.HashSet<>(PlayerLookup.tracking(ball));` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:230` | `ServerPlayNetworking.send(player, MOTION_CHANNEL, buf);` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:15` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:75` | `ServerPlayNetworking.registerGlobalReceiver(ACTION_CHANNEL, (server, player, handler, buf, responseSender) -> ` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:88` | `ClientPlayNetworking.registerGlobalReceiver(POSE_CHANNEL, (client, handler, buf, responseSender) -> {` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:100` | `ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:199` | `ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:221` | `java.util.Set<ServerPlayerEntity> receivers = new java.util.HashSet<>(PlayerLookup.tracking(ball));` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:231` | `ServerPlayNetworking.send(player, MOTION_CHANNEL, buf);` |
 | `src/main/java/com/whale/pingpong/PingPongMod.java:13` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
 | `src/main/java/com/whale/pingpong/PingPongMod.java:60` | `for (ServerPlayerEntity other : PlayerLookup.tracking(joined)) {` |
 | `src/main/java/com/whale/pingpong/server/PaddlePoseTracker.java:5` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
@@ -154,5 +154,5 @@
 | 位置 | 代码 |
 | --- | --- |
 | `src/main/java/com/whale/pingpong/client/PingPongClient.java:13` | `import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:72` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:74` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:73` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:75` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
