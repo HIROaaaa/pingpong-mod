@@ -59,6 +59,8 @@ public class PingPongClient implements ClientModInitializer {
 
 		// 启动时就报告 bendy-lib 是否就绪（否则要等进世界渲染玩家模型才看得到结论）
 		PingPongModelPose.probeBendSupport();
+		// 同样在启动时就把"前臂部件能否构造"验掉（反射构造，失败要早知道）
+		ForearmPart.probe();
 		// 游戏内诊断：/pingpong diag —— 把版本、Mixin 命中数、bend 成功/失败数一次摊开
 		PingPongDiagCommand.register();
 

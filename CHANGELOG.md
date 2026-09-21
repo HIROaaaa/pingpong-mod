@@ -8,6 +8,41 @@
 
 ---
 
+## [1.9.9] - 2026-09-21
+
+**换机制：用真实的几何肘关节替代顶点变形。** 用户把 `/pingpong bend` 从 40° 试到 150° 后
+给出决定性回答：**「全都没区别」** —— 顶点变形（bendy-lib 的 bend）在这个模型上的
+视觉贡献约等于 0，继续调参没有意义。
+
+### 新增：`client/ForearmPart` —— 给手臂加一段真的前臂
+
+不再依赖变形，而是**凭空造一个前臂模型部件**挂到肘部，相对上臂折一个角。
+这样"胳膊在肘部弯了"是**确定的几何**，不依赖任何库的行为。
+
+技术要点（签名都用 javap 从 remapped jar 查证，没有凭记忆写）：
+
+- `ModelPart(List<Cuboid>, Map<String, ModelPart>)`（final class，用反射构造）；
+- `Cuboid(int u, int v, float x, float y, float z, float sx, float sy, float sz,
+  float ex, float ey, float ez, boolean mirror, float uScale, float vScale, Set<Direction>)`；
+- 前臂截面 4×4、长 6 像素（手臂总长 12，正好上下各一半）；
+- 挂载点在上臂的"肘"位置，`pitch` 随弯矩旋转 → 视觉上就是折角；
+- `children` 字段是私有的，同样用反射写入（签名变了也只是这里失败，有 try/catch 兜底）。
+
+**启动时自检**：客户端启动就会构造一次并打日志 ——
+`前臂部件构造成功：手臂会有关节弯曲（几何关节，不依赖 bendy-lib）`
+
+放在启动阶段而不是等渲染，是为了让失败早暴露（本鲸娘已经吃过"静默失败排查半天"的亏）。
+
+### `/pingpong diag` 多一行
+
+```
+前臂部件: 可用（几何关节）
+```
+
+`/pingpong bend <度数>` 继续可用 —— 现在它调的是**真实前臂的折角**，不再是变形量。
+
+---
+
 ## [1.9.8] - 2026-09-21
 
 新增 **`/pingpong bend <度数>`** —— 在游戏里实时调整肘部弯曲量，当场看效果。

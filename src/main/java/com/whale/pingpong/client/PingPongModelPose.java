@@ -183,6 +183,7 @@ public final class PingPongModelPose {
 		return "Mixin 注入命中: " + diagApplyCalls + " 次（其中持拍 " + diagHoldingCalls + " 帧）\n"
 				+ "bendy-lib 可用: " + (bendAvailable() ? "是" : "否")
 				+ " / 已 initBend 部件: " + initializedParts.size() + " 个\n"
+				+ ForearmPart.diagnostics() + "\n"
 				+ "bend 调用: 成功 " + diagBendCalls + " 次 / 失败 " + diagBendFailures + " 次\n"
 				+ "最近的弯矩: " + String.format("%.1f", diagLastBendDegrees)
 				+ "° / 大臂俯仰: " + String.format("%.1f", diagLastArmPitch)
@@ -351,6 +352,17 @@ public final class PingPongModelPose {
 
 		applyElbowBend(paddleArm, st.curElbowBend, true);
 		applyElbowBend(otherArm, st.curElbowBend * 0.55F, false);
+
+		/*
+		 * 【真·肘关节（第九轮）】顶点变形（bend）从 40° 试到 150°，用户答复是
+		 * 「全都没区别」—— 说明变形在这个模型上的视觉贡献约等于 0。
+		 * 所以改成**几何关节**：给手臂真的加一段前臂部件，相对上臂折一个角。
+		 * bend 那条路留着当兜底（关节部件构造失败时仍然走它）。
+		 */
+		if (ForearmPart.available()) {
+			ForearmPart.apply(paddleArm, !offHandLeft, st.curElbowBend);
+		}
+
 		/*
 		 * 【躯干弯曲（用户实测："拉球时上半身和腿部是直接折开的"）】
 		 *
