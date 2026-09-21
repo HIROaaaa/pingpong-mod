@@ -302,11 +302,20 @@ public final class PingPongModelPose {
 	 * <p>普通 ModelPart 只会绕枢轴**刚体旋转**，做不出"打弯"；真正的形变要靠
 	 * playerAnimator 的 bend 接口（顶点级重排，底层是 **bendy-lib**）。
 	 *
-	 * <p>【重要：装没装 bendy-lib 决定这里有没有效果】
-	 * playerAnimator 在静态初始化时检测 bendy-lib 是否加载，没装就把实现换成
-	 * {@code DummyBendable}（空实现）—— 所以<b>调用不报错、但什么都不会弯</b>。
-	 * 这正是"我看着加了弯曲代码却没效果"的原因。现在先查 {@code Helper.isBendEnabled()}
-	 * 再决定要不要调，并把结果缓存下来避免每帧走反射。
+	 * <p>【两个必踩的坑，都栽过】
+	 * <ol>
+	 *   <li><b>没装 bendy-lib 时是静默空实现</b>：playerAnimator 在静态初始化时检测它，
+	 *       没装就把实现换成 {@code DummyBendable} —— 调用不报错、但什么都不会弯。
+	 *       所以先查 {@code Helper.isBendEnabled()}。</li>
+	 *   <li><b>光调 {@code bend()} 不够，必须先 {@code initBend()}</b>：反汇编
+	 *       {@code BendHelper.bend()} 可以看到它内部是
+	 *       {@code getAndActivateMutator("bend")} → {@code applyBend(...)}，
+	 *       而名为 "bend" 的 mutator <b>只有 {@code initBend(part, direction)} 会注册</b>
+	 *       （registerMutator("bend", …)）。少了 initBend，mutator 不存在，弯曲自然毫无动静
+	 *       —— 这就是"代码明明在调 bend 却没效果"的真正原因。</li>
+	 * </ol>
+	 * 所以流程是：首次给某个部件 {@code initBend(part, Direction.DOWN)}（在中间弯折），
+	 * 之后每帧 {@code bend(part, 角度, 0)}。initBend 只做一次，用表记住做过哪些部件。
 	 *
 	 * @param bendDegrees 弯曲角度（度），0 = 伸直
 	 */
@@ -317,11 +326,35 @@ public final class PingPongModelPose {
 		try {
 			Class<?> helperClass = Class.forName("dev.kosmx.playerAnim.impl.animation.IBendHelper");
 			Object helper = helperClass.getField("INSTANCE").get(null);
+			if (initializedParts.put(part, Boolean.TRUE) == null) {
+				// 首次见到这个部件：注册 "bend" mutator（方向 DOWN = 在部件中部弯折）
+				helperClass.getMethod("initBend", ModelPart.class, net.minecraft.util.math.Direction.class)
+						.invoke(helper, part, net.minecraft.util.math.Direction.DOWN);
+			}
 			helperClass.getMethod("bend", ModelPart.class, float.class, float.class)
 					.invoke(helper, part, toRadians(bendDegrees), 0.0F);
 		} catch (Throwable ignored) {
 			// playerAnimator 换了实现/签名：动作照常，只是不弯。可选依赖的正常降级。
 		}
+	}
+
+	/**
+	 * 已经 {@code initBend} 过的部件。
+	 * 【为什么用弱键】ModelPart 由渲染器持有（玩家模型是共享实例），这里只借来去重，
+	 * 不该阻止它们被回收。
+	 */
+	private static final java.util.Map<ModelPart, Boolean> initializedParts =
+			new java.util.WeakHashMap<>();
+
+	/**
+	 * 客户端启动时主动探测一次 bendy-lib。
+	 *
+	 * 【为什么要在启动时探测】原先只在"第一次需要弯曲"时才检测，而那只发生在渲染玩家模型时
+	 * （要先进入世界）—— 日志里就看不到结论，排查时得先进游戏。
+	 * 现在启动阶段就把结果打进日志，一眼就能确认"弯曲到底能不能生效"。
+	 */
+	public static void probeBendSupport() {
+		bendAvailable();
 	}
 
 	private static boolean bendChecked;
@@ -341,6 +374,9 @@ public final class PingPongModelPose {
 				com.whale.pingpong.PingPongMod.LOGGER.info(
 						"[pingpong] 未检测到 bendy-lib：动作照常播放，但手臂/躯干的弯曲效果不会出现。"
 								+ "想看到弯曲请安装 bendy-lib（客户端 mod）。");
+			} else {
+				com.whale.pingpong.PingPongMod.LOGGER.info(
+						"[pingpong] 已检测到 bendy-lib：手臂与躯干会有关节弯曲。");
 			}
 		} catch (Throwable ignored) {
 			bendAvailable = false;

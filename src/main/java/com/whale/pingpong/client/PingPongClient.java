@@ -57,6 +57,9 @@ public class PingPongClient implements ClientModInitializer {
 		PingPongHud.register();
 		registerKeyBindings();
 
+		// 启动时就报告 bendy-lib 是否就绪（否则要等进世界渲染玩家模型才看得到结论）
+		PingPongModelPose.probeBendSupport();
+
 		ClientTickEvents.END_CLIENT_TICK.register(PingPongClient::onEndClientTick);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			PingPongClientState.reset();

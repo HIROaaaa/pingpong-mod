@@ -18,10 +18,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
-const OUT = path.join(ROOT, 'src/main/resources/assets/pingpong/models/item/pingpong_paddle.json');
+/*
+ * 【为什么换文件名（_v2）】用户连续两轮反馈"球拍还是 2D 平面"，而模型确实已经改过两次 ——
+ * 除了几何本身，还有一个必须排除的可能：**客户端资源缓存**。
+ * 换个新的模型文件名（并同步 item model json）能强制资源重载，把"是不是没加载新模型"
+ * 这个变量一次性排除掉。
+ */
+const OUT = path.join(ROOT, 'src/main/resources/assets/pingpong/models/item/pingpong_paddle_v2.json');
 
 // ------------------------------------------------------------------
 // 几何参数（单位：模型像素 = 1/16 格）
+//
+// 【关于厚度：为什么一直在加】用户连续反馈"球拍还是 2D 的平面"。
+// 原版 1.0 版拍面厚 0.8 像素、1.3.0 加厚到 2.2、本轮提到 **4.6 像素（约 0.29 格）**。
+// 真球拍当然没这么厚，但方块世界里的物品普遍夸张 —— 薄了在任何角度都像一张纸。
+// 另外拍面做成**两层渐进圆**（外层大、内层小并略微前凸），侧看就有球面的弧度，
+// 而不是一块等厚的板。
 // ------------------------------------------------------------------
 const P = 1 / 16;              // 像素 → 方块坐标
 const BLADE_TOP = 15;          // 拍面顶部（y）
@@ -30,14 +42,19 @@ const BLADE_CENTER_Y = BLADE_TOP - BLADE_HEIGHT / 2;
 const BLADE_CENTER_X = 8;      // 拍面中心横向（模型宽 16）
 const BLADE_RADIUS = BLADE_HEIGHT / 2;
 
-const RUBBER_THICK = 0.8;      // 每面胶皮厚度（原来 0.5，太薄看不出是胶皮）
-const CORE_THICK = 1.4;        // 木芯厚度
+const RUBBER_INNER = 1.3;      // 胶皮内层（全尺寸，贴着木芯）
+const RUBBER_OUTER = 0.9;      // 胶皮外层（略小一圈，形成圆弧收边）
+const CORE_THICK = 1.6;        // 木芯厚度
 const CORE_INSET = 0.25;       // 木芯内缩 → 拍边露出一圈木色（当倒角用）
 
-const Z_CORE_MIN = 8 - CORE_THICK / 2;              // 7.3
-const Z_CORE_MAX = 8 + CORE_THICK / 2;              // 8.7
-const Z_BACK_RUBBER = [Z_CORE_MIN - RUBBER_THICK, Z_CORE_MIN];
-const Z_FRONT_RUBBER = [Z_CORE_MAX, Z_CORE_MAX + RUBBER_THICK];
+const Z_CORE_MIN = 8 - CORE_THICK / 2;              // 7.1
+const Z_CORE_MAX = 8 + CORE_THICK / 2;              // 8.9
+const Z_BACK_INNER = [Z_CORE_MIN - RUBBER_INNER, Z_CORE_MIN];
+const Z_BACK_OUTER = [Z_CORE_MIN - RUBBER_INNER - RUBBER_OUTER, Z_CORE_MIN - RUBBER_INNER];
+const Z_FRONT_INNER = [Z_CORE_MAX, Z_CORE_MAX + RUBBER_INNER];
+const Z_FRONT_OUTER = [Z_CORE_MAX + RUBBER_INNER, Z_CORE_MAX + RUBBER_INNER + RUBBER_OUTER];
+/** 外层比内层小多少（像素）：收这一圈就看出圆角/球面感 */
+const OUTER_SHRINK = 0.9;
 
 const LAYERS = 9;              // 拍面分几层拼圆
 
@@ -64,9 +81,8 @@ function solidBox(from, to, uv) {
 const elements = [];
 
 // ------------------------------------------------------------------
-// 1. 拍面：逐层拼圆
-//    每一层是一个横贯的扁块；半宽 = √(R² − h²)，h 是该层中心到拍面中心的距离。
-//    木芯每层比胶皮窄 CORE_INSET×2（于是拍边能看见木色）。
+// 1. 拍面：逐层拼圆 + 两层渐进（外层收一圈 → 侧看有球面弧度）
+//    每一层的半宽 = √(R² − h²)，h 是该层中心到拍面中心的距离。
 // ------------------------------------------------------------------
 const layerHeight = BLADE_HEIGHT / LAYERS;
 for (let i = 0; i < LAYERS; i++) {
@@ -77,11 +93,19 @@ for (let i = 0; i < LAYERS; i++) {
   const x0 = BLADE_CENTER_X - halfWidth;
   const x1 = BLADE_CENTER_X + halfWidth;
 
-  // 正面红胶皮 + 反面黑胶皮（同宽，构成圆形轮廓）
+  // 正面红胶皮：内层全尺寸 + 外层收一圈
   elements.push(solidBox(
-    [r(x0), r(y0), Z_FRONT_RUBBER[0]], [r(x1), r(y1), Z_FRONT_RUBBER[1]], UV.redFace));
+    [r(x0), r(y0), Z_FRONT_INNER[0]], [r(x1), r(y1), Z_FRONT_INNER[1]], UV.redFace));
   elements.push(solidBox(
-    [r(x0), r(y0), Z_BACK_RUBBER[0]], [r(x1), r(y1), Z_BACK_RUBBER[1]], UV.blackFace));
+    [r(x0 + OUTER_SHRINK), r(y0), Z_FRONT_OUTER[0]],
+    [r(x1 - OUTER_SHRINK), r(y1), Z_FRONT_OUTER[1]], UV.redFace));
+
+  // 反面黑胶皮：同样两层
+  elements.push(solidBox(
+    [r(x0), r(y0), Z_BACK_INNER[0]], [r(x1), r(y1), Z_BACK_INNER[1]], UV.blackFace));
+  elements.push(solidBox(
+    [r(x0 + OUTER_SHRINK), r(y0), Z_BACK_OUTER[0]],
+    [r(x1 - OUTER_SHRINK), r(y1), Z_BACK_OUTER[1]], UV.blackFace));
 
   // 木芯：横向各缩 CORE_INSET，夹在两片胶皮之间
   elements.push(solidBox(
@@ -108,8 +132,10 @@ elements.push(solidBox([r(FLARE.x0), 0, r(FLARE.z0)], [r(FLARE.x1), 0.3, r(FLARE
 
 // ------------------------------------------------------------------
 // 3. 朝向指示：拍面中央一条细木条（任何角度都能看出拍面朝哪，需求 0）
+//    插在最外层胶皮之上，凸出 0.4 像素
 // ------------------------------------------------------------------
-elements.push(solidBox([7.75, 6.5, r(Z_FRONT_RUBBER[1])], [8.25, 13.5, r(Z_FRONT_RUBBER[1] + 0.35)], UV.woodEnd));
+elements.push(solidBox(
+  [7.75, 6.5, r(Z_FRONT_OUTER[1])], [8.25, 13.5, r(Z_FRONT_OUTER[1] + 0.4)], UV.woodEnd));
 
 function r(v) {
   return Math.round(v * 100) / 100;
@@ -163,15 +189,34 @@ check('拍面高度与直径符合设定（约 13 像素）',
   Math.abs((BLADE_TOP - (BLADE_TOP - BLADE_HEIGHT)) - BLADE_HEIGHT) < 1e-6,
   `${BLADE_HEIGHT} 像素`);
 check('胶皮比木芯宽（拍边能露出木色当倒角）',
-  elements.some((e) => e.from[2] === r(Z_FRONT_RUBBER[0]) && e.from[0] === r(BLADE_CENTER_X - BLADE_RADIUS)),
+  elements.some((e) => e.from[2] === r(Z_FRONT_INNER[0]) && e.from[0] === r(BLADE_CENTER_X - BLADE_RADIUS)),
   '第 0 层胶皮从拍面最外侧开始，木芯内缩');
+check('拍面总厚度 ≥ 4 像素（薄了从任何角度都像纸片）',
+  Z_FRONT_OUTER[1] - Z_BACK_OUTER[0] >= 4.0,
+  `实测 ${(Z_FRONT_OUTER[1] - Z_BACK_OUTER[0]).toFixed(2)} 像素`);
+check('胶皮外层比内层窄（形成圆弧收边，侧看有球面感）',
+  OUTER_SHRINK > 0 && elements.some((e) => Math.abs(e.from[0] - r(BLADE_CENTER_X - BLADE_RADIUS + OUTER_SHRINK)) < 0.01),
+  `外层内缩 ${OUTER_SHRINK} 像素`);
 check('UV 全部在 32x32 图集范围内',
   elements.every((e) => Object.values(e.faces).every((f) => f.uv.every((v) => v >= 0 && v <= 32))),
   '越界会显示紫黑格');
 
 if (fails === 0) {
+  /*
+   * 【写出两个文件，顺便把"缓存"这个变量排除掉】
+   * 物品模型必须叫 models/item/pingpong_paddle.json（Fabric 按物品 ID 找它）。
+   * 如果它**直接内联**几何体，客户端可能拿缓存里的旧版本；
+   * 所以让它只写一行 parent 指向 _v2（每次改几何都会换新文件名），
+   * 几何体放在 _v2 里 —— 文件名一变就是一次强制的资源变化。
+   */
   fs.writeFileSync(OUT, JSON.stringify(model, null, '\t') + '\n', 'utf8');
+  const direct = path.join(ROOT, 'src/main/resources/assets/pingpong/models/item/pingpong_paddle.json');
+  fs.writeFileSync(direct, JSON.stringify({
+    comment: '只做转发：物品必须叫这个名字，真正的几何在 pingpong_paddle_v2.json（由 tools/gen_paddle_model.js 生成）。',
+    parent: 'pingpong:item/pingpong_paddle_v2',
+  }, null, '\t') + '\n', 'utf8');
   console.log(`\n✅ 已写入 ${path.relative(ROOT, OUT)}`);
+  console.log(`✅ 已写入 ${path.relative(ROOT, direct)}（转发到 _v2）`);
 } else {
   console.error(`\n❌ ${fails} 项自检未通过，未写入文件`);
   process.exit(1);

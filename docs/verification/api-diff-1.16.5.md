@@ -1,6 +1,6 @@
 # 1.16.5 API 差异扫描（M5 工作清单）
 
-> 生成时间：2026-09-21 10:03:35
+> 生成时间：2026-09-21 10:18:26
 > 扫描范围：30 个源文件
 
 ## 总览
@@ -154,5 +154,5 @@
 | 位置 | 代码 |
 | --- | --- |
 | `src/main/java/com/whale/pingpong/client/PingPongClient.java:13` | `import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:73` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:75` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:76` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:78` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
