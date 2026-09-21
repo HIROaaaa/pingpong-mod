@@ -109,16 +109,37 @@ public final class PingPongModelPose {
 
 	// ---- 肘部弯曲（大臂/小臂的折角，见 applyElbowBend）----
 	//
-	// 【为什么数值这么大】诊断显示 bend 调用**成功** 3318 次、bendy-lib 可用、注入也命中，
-	// 但玩家看不出弯曲 —— 说明是**幅度不够**而不是没执行（模型手臂只有 11 像素长、
-	// 4×12×4 的方块，几十度的顶点级变形在屏幕上很微弱）。
-	// 所以整体上调：待机 40°、引拍到 115°（接近折成直角），前挥回到 55°。
-	/** 持拍待机的基础弯曲（度）：手臂不会伸得笔直 */
+	// 【为什么一路调到这么极端】诊断数据证明 bend 确实在生效（弯矩 52°、成功 11036 次、
+	// 零失败），但屏幕上仍看不出 —— 说明"几十度"对 11 像素长的细长部件是**视觉噪声级**的。
+	// 这一版直接把量送到 130°（远超"折成直角"）做**极限定性**：
+	//   · 看得出形变 → 机制可用，再往回调到手感合适的值；
+	//   · 还是看不出   → 顶点变形在这个模型上的视觉极限，得换机制（自定义物品渲染器等）。
+	/** 持拍待机的基础弯曲（度） */
 	private static final float BEND_BASE = 40.0F;
-	/** 引拍时额外增加的弯曲（度）：收拍到身后时小臂收着 */
+	/** 引拍时额外增加的弯曲（度） */
 	private static final float BEND_WINDUP = 75.0F;
-	/** 前挥时回伸的量（度）：出拍要伸出去 */
+	/** 前挥时回伸的量（度） */
 	private static final float BEND_FORWARD = 60.0F;
+
+	/**
+	 * 调试用弯矩覆盖（度）：&lt;0 = 不覆盖，走正常动作。
+	 *
+	 * <p>【为什么留这个后门】调弯曲幅度时，如果每次都改常量→编译→发版→让玩家重启游戏，
+	 * 一轮要花十几分钟，而真正需要的只是"看一眼 60° 和 120° 差多少"。
+	 * 有了它，玩家在游戏里敲 `/pingpong bend 120` 就能当场看到效果、当场改，
+	 * 找到合适的量再把它固化成常量。这是"少绕弯"该有的样子。
+	 */
+	private static float bendOverride = -1.0F;
+
+	/** 设置调试弯矩（度）；传负数恢复跟随动作 */
+	public static void setBendOverride(float degrees) {
+		bendOverride = degrees;
+	}
+
+	/** 当前调试弯矩（负数 = 未覆盖） */
+	public static float bendOverride() {
+		return bendOverride;
+	}
 
 	private PingPongModelPose() {
 	}
@@ -375,6 +396,9 @@ public final class PingPongModelPose {
 	 * @param isArm 是否是"持拍手臂"——只有它的弯矩才写进诊断（否则会被躯干的值覆盖掉）
 	 */
 	private static void applyElbowBend(ModelPart part, float bendDegrees, boolean isArm) {
+		if (isArm && bendOverride >= 0.0F) {
+			bendDegrees = bendOverride;   // 调试覆盖：/pingpong bend <度数>
+		}
 		if (Math.abs(bendDegrees) < 0.5F || part == null || !bendAvailable()) {
 			return;
 		}

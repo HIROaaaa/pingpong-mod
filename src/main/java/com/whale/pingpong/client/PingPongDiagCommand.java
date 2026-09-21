@@ -37,7 +37,34 @@ public final class PingPongDiagCommand {
 						.then(ClientCommandManager.literal("diag")
 								.executes(ctx -> run(""))
 								.then(ClientCommandManager.argument("note", StringArgumentType.greedyString())
-										.executes(ctx -> run(StringArgumentType.getString(ctx, "note")))))));
+										.executes(ctx -> run(StringArgumentType.getString(ctx, "note")))))
+						/*
+						 * /pingpong bend <度数> —— 调试弯矩。
+						 *
+						 * 【为什么要有它】调"弯曲幅度"时，每改一次常量都要 编译→发版→玩家重启游戏，
+						 * 一轮十几分钟；而实际需要的只是"看一眼 60° 和 120° 差多少"。
+						 * 有了这条命令，玩家在游戏里当场试、当场定值，我再固化成常量 ——
+						 * 这是把"反复试错"从发版循环里拿出来。
+						 */
+						.then(ClientCommandManager.literal("bend")
+								.then(ClientCommandManager.argument("degrees", com.mojang.brigadier.arguments.FloatArgumentType.floatArg(-1.0F, 180.0F))
+										.executes(ctx -> {
+											float deg = com.mojang.brigadier.arguments.FloatArgumentType.getFloat(ctx, "degrees");
+											PingPongModelPose.setBendOverride(deg);
+											String msg = deg < 0.0F
+													? "弯矩调试已关闭，恢复跟随动作"
+													: String.format("调试弯矩 = %.0f°（-1 取消）", deg);
+											show(msg);
+											return 1;
+										})))));
+	}
+
+	private static void show(String message) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client.player != null) {
+			client.player.sendMessage(Text.literal(message), false);
+		}
+		PingPongMod.LOGGER.info("[pingpong] {}", message);
 	}
 
 	private static int run(String note) {
