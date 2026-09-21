@@ -55,6 +55,8 @@ public class PlayerEntityModelMixin {
 		// 直接 (BipedEntityModel) this 编译不过（javac 认为不可能）。运行时注入后 this 就是模型本身，
 		// 所以先转 Object 再转目标类型 —— 这是 mixin 里访问自身实例的常规写法。
 		BipedEntityModel<?> model = (BipedEntityModel<?>) (Object) this;
+		// 计数：这是"Mixin 到底有没有跑"的唯一直接证据（日志里看不出来，/pingpong diag 里能看）
+		PingPongModelPose.noteMixinHit();
 		PingPongModelPose.update((AbstractClientPlayerEntity) entity);
 		// hat 必须一起传：原版把 hat（头发/帽层）的旋转**复制自 head**，
 		// 我们改 head 之后不带上 hat，就会出现"头和头发分离"（用户实测反馈）。

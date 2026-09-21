@@ -31,6 +31,27 @@ public class PingPongMod implements ModInitializer {
 	public static final String MOD_ID = "pingpong";
 	public static final Logger LOGGER = LoggerFactory.getLogger("PingPong");
 
+	/**
+	 * 本构建的版本号 —— **从 mod 元数据读**，不是手写死的。
+	 *
+	 * 【为什么要能在游戏里看到版本】用户曾反馈"改了没效果"、"和之前没区别"，
+	 * 查他的实例日志才发现跑的一直是旧 jar（**换 jar 与"真的重启游戏"是两件事**）。
+	 * 有了它，`/pingpong diag` 能当场确认到底在跑哪一版，不用再猜。
+	 *
+	 * 【为什么读元数据而不是写常量】手写常量一定会忘同步 —— jar 是 1.9.6、常量还写着 1.9.5，
+	 * 那这条诊断反而会误导人。元数据里的版本由 build.gradle 从 gradle.properties 展开，天然一致。
+	 */
+	public static String version() {
+		try {
+			return net.fabricmc.loader.api.FabricLoader.getInstance()
+					.getModContainer(MOD_ID)
+					.map(container -> container.getMetadata().getVersion().getFriendlyString())
+					.orElse("unknown");
+		} catch (Throwable ignored) {
+			return "unknown";
+		}
+	}
+
 	/** 统一构造 Identifier，避免到处写字符串。 */
 	public static Identifier id(String path) {
 		return new Identifier(MOD_ID, path);

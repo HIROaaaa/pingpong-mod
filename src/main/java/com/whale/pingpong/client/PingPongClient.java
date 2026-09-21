@@ -59,6 +59,8 @@ public class PingPongClient implements ClientModInitializer {
 
 		// 启动时就报告 bendy-lib 是否就绪（否则要等进世界渲染玩家模型才看得到结论）
 		PingPongModelPose.probeBendSupport();
+		// 游戏内诊断：/pingpong diag —— 把版本、Mixin 命中数、bend 成功/失败数一次摊开
+		PingPongDiagCommand.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(PingPongClient::onEndClientTick);
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

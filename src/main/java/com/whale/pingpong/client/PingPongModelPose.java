@@ -125,6 +125,39 @@ public final class PingPongModelPose {
 	}
 
 	// ------------------------------------------------------------------
+	// 运行时诊断计数（`/pingpong diag` 用）
+	//
+	// 【为什么要这些计数】"Mixin 有没有真的改到模型"从外面看不出来：日志干净、
+	// mod 也确实加载了，但注入可能落在另一个模型实例上、或者根本没跑。
+	// 数出来才看得见 —— 这是排查"改了没效果"的唯一直接证据。
+	// ------------------------------------------------------------------
+
+	/** setAngles 注入命中次数（每次玩家模型算角度都会 +1） */
+	private static long diagApplyCalls;
+	/** 其中「手里拿球拍」的帧数 —— 为 0 说明一直没握着拍子渲染过 */
+	private static long diagHoldingCalls;
+	/** bend 成功调用的次数 */
+	private static long diagBendCalls;
+	/** bend 抛异常的次数（反射/签名/方向不对都会落这里） */
+	private static long diagBendFailures;
+	/** 最近一次出错的异常摘要 */
+	private static String diagLastBendError = "（无）";
+
+	/** 供 mixin 在命中注入点时调用 */
+	public static void noteMixinHit() {
+		diagApplyCalls++;
+	}
+
+	/** 一行行的人类可读诊断（交给 /pingpong diag 展示） */
+	public static String diagnostics() {
+		return "Mixin 注入命中: " + diagApplyCalls + " 次（其中持拍 " + diagHoldingCalls + " 帧）\n"
+				+ "bendy-lib 可用: " + (bendAvailable() ? "是" : "否")
+				+ " / 已 initBend 部件: " + initializedParts.size() + " 个\n"
+				+ "bend 调用: 成功 " + diagBendCalls + " 次 / 失败 " + diagBendFailures + " 次\n"
+				+ "最近 bend 错误: " + diagLastBendError;
+	}
+
+	// ------------------------------------------------------------------
 	// 每帧更新
 	// ------------------------------------------------------------------
 
@@ -143,6 +176,7 @@ public final class PingPongModelPose {
 			return;
 		}
 		st.active = true;
+		diagHoldingCalls++;
 
 		boolean local = player == net.minecraft.client.MinecraftClient.getInstance().player;
 		PaddlePoseCache.Pose cached = PaddlePoseCache.get(player.getUuid());
@@ -333,8 +367,16 @@ public final class PingPongModelPose {
 			}
 			helperClass.getMethod("bend", ModelPart.class, float.class, float.class)
 					.invoke(helper, part, toRadians(bendDegrees), 0.0F);
-		} catch (Throwable ignored) {
+			diagBendCalls++;
+		} catch (Throwable error) {
 			// playerAnimator 换了实现/签名：动作照常，只是不弯。可选依赖的正常降级。
+			// 但要把失败记下来 —— 静默失败正是这次排查最耗时间的地方。
+			diagBendFailures++;
+			String message = error.getClass().getSimpleName() + ": " + error.getMessage();
+			if (error.getCause() != null) {
+				message += " ← " + error.getCause().getClass().getSimpleName() + ": " + error.getCause().getMessage();
+			}
+			diagLastBendError = message;
 		}
 	}
 
