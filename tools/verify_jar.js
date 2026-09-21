@@ -106,7 +106,24 @@ function classOf(spec) {
 }
 
 const entityClass = readZipEntry(jar, DEFAULT_CLASS);
-for (const spec of expectPresent) {
+
+/**
+ * 检查一个"期望存在"的符号。
+ *
+ * 【语法扩展】除了 class 符号（`名字` 或 `名字@com/…/Class`），
+ * 还支持**资源文件**：写成 `assets/pingpong/models/item/xxx.json` 这样带路径的，
+ * 就直接在 jar 条目里找它 —— 模型/贴图这类资源没法用"类符号"校验，
+ * 但"有没有打进产物"同样必须验（用户遇到过改了模型却没生效的情况）。
+ */
+function checkPresent(spec) {
+  // 【判断顺序】先看有没有 @（class 符号），再看有没有 /（资源路径）。
+  // 反过来会把 `符号@com/…/Class` 误判成资源路径 —— 第一版就是这么错的。
+  const isResource = !spec.includes('@') && spec.includes('/');
+  if (isResource) {
+    const found = readZipEntry(jar, spec) !== null;
+    check(`产物含资源 ${spec}`, found);
+    return;
+  }
   const { name, bytes: cls, clsPath } = classOf(spec);
   if (!cls) {
     check(`含新增符号 ${name}`, false, `类不存在：${clsPath}`);
@@ -114,13 +131,22 @@ for (const spec of expectPresent) {
     check(`含新增符号 ${name}`, cls.includes(Buffer.from(name)), clsPath);
   }
 }
-for (const spec of expectAbsent) {
+
+/** 检查一个"期望不存在"的符号（只支持 class 符号） */
+function checkAbsent(spec) {
   const { name, bytes: cls, clsPath } = classOf(spec);
   if (!cls) {
     check(`已清除旧符号 ${name}`, false, `类不存在：${clsPath}`);
   } else {
     check(`已清除旧符号 ${name}`, !cls.includes(Buffer.from(name)), clsPath);
   }
+}
+
+for (const spec of expectPresent) {
+  checkPresent(spec);
+}
+for (const spec of expectAbsent) {
+  checkAbsent(spec);
 }
 
 // ④ 字节码版本（Java 8 = 52）

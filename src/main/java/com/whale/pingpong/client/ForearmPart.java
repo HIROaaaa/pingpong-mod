@@ -45,6 +45,8 @@ public final class ForearmPart {
 	private static long splitCount;
 	private static long appliedCount;
 	private static String failure = null;
+	/** 诊断用：最近一次切割的几何数值（不靠猜，直接打出来） */
+	private static String lastGeometry = "（还没切过）";
 
 	private ForearmPart() {
 	}
@@ -67,13 +69,32 @@ public final class ForearmPart {
 	}
 
 	/**
-	 * 应用肘部弯曲（第一次调用时会做几何切割）。
+	 * 默认关闭几何切割。
+	 *
+	 * <h2>为什么关掉（2026-09-21 实测复盘）</h2>
+	 * 照 MoBends 的 `sliceFromBottom` 思路把上臂切成两段的做法，连改了四版都没能让用户
+	 * 看到"折弯"：1.9.10 类名没 remap → 1.9.11 final 字段 → 1.9.12 不可变列表 →
+	 * 1.9.13 用 `@Mutable` 才通 → 1.9.14 修坐标系后**手臂直接消失**。
+	 * 每修一层、下一层才暴露，而每次验证都要用户重启游戏配合 —— 这种投入产出比不值得再赌。
+	 *
+	 * <p>所以策略改为：**几何切割默认关闭**（代码保留，将来有本地验证手段再启）；
+	 * 动作仍然通过骨骼旋转表达（上臂大幅旋转 + 躯干转体），至少不会把模型弄坏。
+	 * 打开它只需把这里改成 true —— 但这属于"有把握时再开"的实验开关。
+	 */
+	private static final boolean ENABLE_GEOMETRY_SPLIT = false;
+
+	/**
+	 * 应用肘部弯曲。
 	 *
 	 * @param arm     上臂部件
 	 * @param isRight 是否右臂
 	 * @param bendDeg 弯曲角度（度）
+	 * @return true = 这次真的做了几何切割
 	 */
 	public static boolean apply(ModelPart arm, boolean isRight, float bendDeg) {
+		if (!ENABLE_GEOMETRY_SPLIT) {
+			return false;   // 默认不做切割：宁可没有关节，也不能把手臂弄没
+		}
 		if (arm == null || failure != null) {
 			return false;
 		}
@@ -115,44 +136,71 @@ public final class ForearmPart {
 		}
 
 		ModelPart.Cuboid source = original.get(0);
+
+		/*
+		 * 【坐标系必须归一化 —— 这就是"手臂消失"的 bug】
+		 *
+		 * 原版手臂方块的坐标是**相对肩部枢轴**的：y 大致是 [-12, 0]（向下为负），
+		 * 而不是我以为的 [0, 12]。而新造的小臂部件有**自己的枢轴**，它的方块坐标要相对
+		 * 自己的枢轴来写。
+		 *
+		 * 之前直接把原坐标的一半填进小臂 → 小臂整体偏了半条手臂（6 像素），
+		 * 落到身体外/看不见的位置，于是"手臂直接没了"。
+		 *
+		 * 修法：先把坐标**归一化到局部原点**（h = y - y0，范围 [0, height]），
+		 * 在这个正空间里切，再转回各自的相对坐标：
+		 *   上臂：方块 [y0, splitY]，全在枢轴下方（与原来一致）
+		 *   小臂：方块 [-half, 0]，全在**自己枢轴的上方**，枢轴放在肘部 →
+		 *         旋转枢轴=肘部，几何在肘部下方，正是"小臂"该在的地方
+		 */
 		float y0 = source.minY;
 		float y1 = source.maxY;
 		float height = y1 - y0;
-		float splitY = y0 + height * UPPER_RATIO;
+		float half = height * UPPER_RATIO;
+		float splitY = y0 + half;          // 切点在原坐标系里的位置
 
 		/*
 		 * 【UV 的处理】MoBends 切割时会把 UV 按比例切开，让皮肤在切口处接上。
 		 * 本实现沿用原方块的贴图起点：手臂贴图是纯肤色/袖口，重复采样一段在 16 像素宽的
-		 * 胳膊上看不出接缝；而算错 v 偏移会整段错位。先用最稳的做法，需要精修再说。
+		 * 胳膊上看不出接缝；而算错 v 偏移会整段错位。先用最稳的做法。
 		 *
 		 * u/v 取原版玩家手臂的贴图参数：右手 40/16、左手 32/48（4×12×4 标准模型）。
 		 */
 		int u = isRight ? 40 : 32;
 		int v = isRight ? 16 : 48;
+		float width = source.maxX - source.minX;
+		float depth = source.maxZ - source.minZ;
 
-		// 新的上臂：只保留上半段
+		// 新的上臂：只保留上半段（坐标仍在原枢轴下：y0 … y0+half）
 		ModelPart.Cuboid upper = newCuboid(u, v,
 				source.minX, y0, source.minZ,
-				source.maxX - source.minX, height * UPPER_RATIO, source.maxZ - source.minZ);
-		// 新的小臂：下半段，几何上紧接着上臂
+				width, half, depth);
+		// 新的小臂：下半段，坐标相对**小臂自己的枢轴**（也就是肘部）→ y 从 -half 到 0
 		ModelPart.Cuboid lower = newCuboid(u, v,
-				source.minX, splitY, source.minZ,
-				source.maxX - source.minX, height * (1.0F - UPPER_RATIO), source.maxZ - source.minZ);
+				0.0F, -half, 0.0F,
+				width, half, depth);
 
-		// 换掉上臂的几何（保留原有其它方块，比如袖子层）
+		/*
+		 * 【为什么不直接改列表内容】原版的 cuboids 是 `Collections.unmodifiableList(...)`：
+		 * `clear()` / `add()` 会抛 `UnsupportedOperationException`（用户实测报错原文）。
+		 * 而字段本身又是 final，普通 setter 会被 JVM 拒绝
+		 * （`IllegalAccessError: Update to non-static final field …`）。
+		 * 所以走第三条路：**用 `@Mutable` 的 accessor 整体替换**成自己建的可变列表。
+		 */
 		List<ModelPart.Cuboid> upperList = new ArrayList<>();
 		upperList.add(upper);
+		// 保留原有其它方块（袖子层等），避免把它们的几何弄丢
 		for (int i = 1; i < original.size(); i++) {
 			upperList.add(original.get(i));
 		}
 		accessor.pingpong$setCuboids(upperList);
 
-		// 造小臂部件
+		// 造小臂部件：只装下半段（与上臂的几何彻底分开，不会重叠渲染）
 		List<ModelPart.Cuboid> lowerList = new ArrayList<>();
 		lowerList.add(lower);
 		ModelPart forearm = new ModelPart(lowerList, Collections.<String, ModelPart>emptyMap());
-		// 枢轴在切点（相对上臂起点）→ 它绕"肘"旋转
-		forearm.setPivot(0.0F, height * UPPER_RATIO, 0.0F);
+		// 枢轴 = 肘部（相对上臂起点）；小臂方块写的是 [-half, 0]，正好挂在肘下方
+		forearm.setPivot(0.0F, half, 0.0F);
 
 		// 挂到上臂下
 		Map<String, ModelPart> children = accessor.pingpong$getChildren();
@@ -161,6 +209,15 @@ public final class ForearmPart {
 			return null;
 		}
 		children.put(CHILD_NAME, forearm);
+
+		/*
+		 * 【诊断：把真实几何打出来】手臂方块的实际坐标范围是"我以为 0…12"还是别的，
+		 * 只有看了才知道 —— 上一版就是因为假设了范围而把小臂放到了看不见的地方。
+		 * 这行数据能直接判定：上臂剩哪一段、小臂落在哪一段。
+		 */
+		lastGeometry = String.format(
+				"原 y=[%.1f, %.1f]（高 %.1f）切点 %.1f ｜ 上臂装 y=[%.1f, %.1f] ｜ 小臂装 y=[%.1f, 0] 枢轴 %.1f",
+				y0, y1, height, splitY, y0, splitY, -half, half);
 		return forearm;
 	}
 
@@ -172,10 +229,13 @@ public final class ForearmPart {
 	}
 
 	public static String diagnostics() {
+		if (!ENABLE_GEOMETRY_SPLIT) {
+			return "肘关节: 几何切割已关闭（手臂不会消失；动作由骨骼旋转表达）";
+		}
 		if (failure != null) {
 			return "肘关节: 不可用（" + failure + "）";
 		}
-		return "肘关节: 就绪（类引用 + Accessor） / 已切割手臂: " + splitCount
-				+ " 个 / 应用 " + appliedCount + " 次";
+		return "肘关节: 就绪 / 已切割 " + splitCount + " 个 / 应用 " + appliedCount + " 次\n"
+				+ "小臂几何: " + lastGeometry;
 	}
 }

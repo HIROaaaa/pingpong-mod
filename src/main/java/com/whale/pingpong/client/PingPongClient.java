@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
@@ -61,6 +62,24 @@ public class PingPongClient implements ClientModInitializer {
 		PingPongModelPose.probeBendSupport();
 		// 同样在启动时就把"前臂部件能否构造"验掉（反射构造，失败要早知道）
 		ForearmPart.probe();
+		/*
+		 * 【球拍渲染：当前用标准 JSON 几何；代码渲染（builtin/entity）暂不启用】
+		 *
+		 * 试过照灾变做"代码渲染"（builtin/entity + BuiltinItemRenderer）：
+		 * 日志能证明渲染器**被调用**（"球拍代码渲染被调用"）、几何也建出来了
+		 * （包围盒 x[-4,4] y[-13.8,0] z[-2,2] 像素，尺寸正常），
+		 * 但屏幕上**连最简单的纯色测试方块都看不到** —— 说明问题在渲染时机/状态，
+		 * 不在几何或 UV。继续赌这一条性价比太低，于是回退：
+		 *
+		 * 球拍几何改回 JSON 模型（`pingpong_paddle_v4.json`，10 层拼圆 + 三明治 + 手柄），
+		 * 那个版本能正常显示；观感问题改用 display 配置解决（见 v4 的 gui_light 与 display）。
+		 *
+		 * 下面这行保留着：将来若要再挑战代码渲染，从这里开始。
+		 */
+		// BuiltinItemRendererRegistry.INSTANCE.register(
+		//         com.whale.pingpong.item.ModItems.PINGPONG_PADDLE, new PaddleItemRenderer());
+		// 开发自检（进世界自动给球拍 + 截图）：靠 run/PINGPONG_AUTOCHECK 标志文件开启
+		PaddleModelPlugin.register();
 		// 游戏内诊断：/pingpong diag —— 把版本、Mixin 命中数、bend 成功/失败数一次摊开
 		PingPongDiagCommand.register();
 

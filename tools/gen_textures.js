@@ -194,11 +194,18 @@ function woodPatch(base, dark, light) {
  * 「颗粒质感 + 边缘暗化」，斜着看才有胶皮的样子（需求 1：球拍要立体、不是纸片）。
  */
 function paddleAtlas() {
-  const c = new Canvas(32);
-  c.blit(rubberPatch(RUBBER, RUBBER_DARK), 0, 0);
-  c.blit(rubberPatch([28, 28, 30], [52, 52, 56]), 16, 0);
-  c.blit(woodPatch(WOOD, WOOD_DARK, WOOD_LIGHT), 0, 16);
-  c.blit(woodPatch(WOOD_DARK, [66, 44, 22], WOOD), 16, 16);
+  /*
+   * 【为什么这里不再有品红格】之前为了放"版本标记色"把图集扩到 64、在第 5 格填了纯品红
+   * （#FF2A8A），结果球拍上出现一大块刺眼的品红（标记色被采样到了）。
+   * 现在渲染链路已经验证通过、标记完成使命，那一格改成**木芯色**：
+   * 万一还有元素采样到那里，看到的也只是木头色，不会突兀。
+   */
+  const c = new Canvas(64, 32);
+  c.blit(rubberPatch(RUBBER, RUBBER_DARK), 0, 0);              // [0,0,16,16]    正面红胶皮
+  c.blit(rubberPatch([28, 28, 30], [52, 52, 56]), 16, 0);      // [16,0,32,16]   反面黑胶皮
+  c.blit(woodPatch(WOOD, WOOD_DARK, WOOD_LIGHT), 0, 16);       // [0,16,16,32]   木芯（柄）
+  c.blit(woodPatch(WOOD_DARK, [66, 44, 22], WOOD), 16, 16);    // [16,16,32,32]  木芯（侧面）
+  c.rect(32, 0, 63, 31, WOOD);                                 // [32,0,64,32]   备用格（木芯色）
   return c;
 }
 

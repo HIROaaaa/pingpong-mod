@@ -1,4 +1,4 @@
 {
-	"comment": "只做转发：物品必须叫这个名字，真正的几何在 pingpong_paddle_v2.json（由 tools/gen_paddle_model.js 生成）。",
-	"parent": "pingpong:item/pingpong_paddle_v2"
+	"comment": "转发入口：几何在 pingpong_paddle_v7.json（UV 已按 16 单位制修正）。",
+	"parent": "pingpong:item/pingpong_paddle_v7"
 }

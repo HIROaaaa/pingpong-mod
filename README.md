@@ -257,7 +257,8 @@ gradlew.bat runServer      :: 起服务端（多人测试）
 > **关于 bendy-lib：** playerAnimator 在启动时检测它是否加载，**没装就把弯曲实现换成空实现** ——
 > 也就是说少了它，动作照常播放，但大臂/小臂不会在肘部打弯、躯干也不会在腰部过渡
 > （这个"静默降级"害我排查了半天：代码明明在调 bend，却一点效果都没有）。
-> 现在本 Mod 会主动检测并在日志里提示，不用你猜。详情见 `CHANGELOG.md` 的 1.9.2 / 1.9.3。
+> 现在本 Mod 会主动检测并在日志里提示，不用你猜。详情见 `CHANGELOG.md` 的 1.9.0 条目，
+> 逐条开发过程在 `docs/changelog-archive/v1.9.x-details.md`。
 >
 > 忘了装 playerAnimator 会怎样：Fabric 启动时直接报「缺少依赖 `player-animator`」，游戏进不去。
 >

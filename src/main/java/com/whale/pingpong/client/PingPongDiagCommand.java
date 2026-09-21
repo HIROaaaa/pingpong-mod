@@ -88,6 +88,7 @@ public final class PingPongDiagCommand {
 		}
 
 		sb.append('\n').append(PingPongModelPose.diagnostics());
+		sb.append('\n').append(PaddleItemRenderer.diagnostics());
 
 		String full = sb.toString();
 		if (client.player != null) {

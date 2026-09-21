@@ -28,6 +28,9 @@ loom {
 			 * 【为什么加】动作/模型这类改动**只有看才能验证**，而"改完发版→让用户重启游戏→问效果"
 			 * 一轮好几分钟，还出现过用户跑的还是旧 jar 而白跑的情况。
 			 * 让 runClient 直接进世界，本鲸娘就能自己截图检查，不拿用户当试错的仪器。
+			 *
+			 * 自动检查开关用系统属性传入（`gradle runClient -Dpingpong.autocheck=1`）：
+			 * 打开后进世界 → 自动开创造物品栏（触发物品渲染）→ 自动截图到 run/screenshots。
 			 */
 			programArgs "--quickPlaySingleplayer", "新的世界"
 		}

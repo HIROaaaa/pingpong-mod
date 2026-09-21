@@ -1,0 +1,143 @@
+{
+	"comment": "球拍物品模型的入口：几何由 client/PaddleItemRenderer 用代码绘制（照灾变的做法）。display 参考 L_Ender's Cataclysm 的武器配置：GUI 里斜俯视 + 小缩放，并加 gui_light=front 让正面受光（否则薄件在 GUI 里像一张贴图）。",
+	"parent": "minecraft:builtin/entity",
+	"gui_light": "front",
+	"display": {
+		"gui": {
+			"rotation": [
+				-90,
+				-45,
+				-90
+			],
+			"translation": [
+				-2.5,
+				-2.5,
+				0
+			],
+			"scale": [
+				0.32,
+				0.32,
+				0.32
+			]
+		},
+		"ground": {
+			"rotation": [
+				180,
+				0,
+				0
+			],
+			"translation": [
+				0,
+				20,
+				0
+			],
+			"scale": [
+				1,
+				1,
+				1
+			]
+		},
+		"head": {
+			"rotation": [
+				0,
+				180,
+				0
+			],
+			"translation": [
+				0,
+				0,
+				0
+			],
+			"scale": [
+				0.8,
+				0.8,
+				0.8
+			]
+		},
+		"fixed": {
+			"rotation": [
+				0,
+				90,
+				0
+			],
+			"translation": [
+				0,
+				-4,
+				0
+			],
+			"scale": [
+				0.34,
+				0.35,
+				0.35
+			]
+		},
+		"thirdperson_righthand": {
+			"rotation": [
+				0,
+				180,
+				0
+			],
+			"translation": [
+				0,
+				4,
+				2.25
+			],
+			"scale": [
+				0.8,
+				0.8,
+				0.8
+			]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [
+				0,
+				180,
+				0
+			],
+			"translation": [
+				0,
+				4,
+				2.25
+			],
+			"scale": [
+				0.8,
+				0.8,
+				0.8
+			]
+		},
+		"firstperson_righthand": {
+			"rotation": [
+				10,
+				-170,
+				0
+			],
+			"translation": [
+				2,
+				0,
+				0
+			],
+			"scale": [
+				0.35,
+				0.35,
+				0.35
+			]
+		},
+		"firstperson_lefthand": {
+			"rotation": [
+				10,
+				-170,
+				0
+			],
+			"translation": [
+				2,
+				0,
+				0
+			],
+			"scale": [
+				0.35,
+				0.35,
+				0.35
+			]
+		}
+	}
+}
