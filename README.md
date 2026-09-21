@@ -238,6 +238,25 @@ gradlew.bat runServer      :: 起服务端（多人测试）
 依赖：Fabric Loader ≥ 0.15.11、Fabric API 0.92.2+1.20.1、Minecraft 1.20.1。
 版本组合：Loom 固定 `1.6.12` + Gradle 8.7（`1.7-SNAPSHOT` 已要求 Gradle ≥ 8.8）。
 
+> ### ⚠️ 1.9.0 起多一个前置：playerAnimator（玩家侧安装）
+>
+> 从 v1.9.0 开始，本 Mod 用 **playerAnimator** 提供玩家骨骼动画（顺滑的挥拍动作）。
+> 它是**普通依赖，不打进我们的 jar**（用户拍板：「就直接设置到mod需要的依赖里，
+> 很多其它mod也都有依赖mod，这很正常」），所以要玩家自己装：
+>
+> | 需要装的地方 | 装什么 |
+> | --- | --- |
+> | 客户端 | `player-animation-lib-fabric-1.0.2-rc1+1.20.jar` |
+> | 服务端 | **不需要**（playerAnimator 的 mixin 全部在 `client` 段、`mixins: []` 为空，纯客户端库） |
+>
+> 下载：<https://modrinth.com/mod/playeranimator/version/1.0.2-rc1+1.20-fabric>
+> （1.20.1 这条线上它**只有 beta 版**，没有 release —— 不是我们挑的，是官方就这一个。
+> 开发环境不用手动准备：`build.gradle` 会在配置阶段把它下载到 `build/libs-external/`，
+> 已存在的文件会跳过下载，所以重复构建与离线构建都不需要网络。）
+>
+> 忘了装会怎样：Fabric 在启动时直接报「缺少依赖 `player-animator`」，游戏进不去 —— 这是刻意的，
+> 总比进游戏后手臂一动不动、却不知道哪里错了要好。
+
 ### 调试开关
 
 ```bat

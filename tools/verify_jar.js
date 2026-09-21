@@ -90,15 +90,36 @@ if (!fmj) {
 }
 
 // ② ③ 符号存在性（class 常量池里的方法名/字段名以字面串形式出现）
-const entityClass = readZipEntry(jar, 'com/whale/pingpong/entity/PingPongBallEntity.class');
-if (!entityClass) {
-  check('PingPongBallEntity.class 存在', false);
-} else {
-  for (const sym of expectPresent) {
-    check(`含新增符号 ${sym}`, entityClass.includes(Buffer.from(sym)));
+//
+// 【语法】符号可以写成 `名字`（默认查 PingPongBallEntity）或 `名字@com/whale/pingpong/xxx/Class`，
+// 后者用于查**独立的新类**——本工具第一版只查实体类，结果 PingPongModelPose 这种新类
+// 明明在 jar 里却被报"不含新增符号"（假失败）。
+const DEFAULT_CLASS = 'com/whale/pingpong/entity/PingPongBallEntity.class';
+const classCache = new Map();
+function classOf(spec) {
+  const at = spec.indexOf('@');
+  const clsPath = at < 0 ? DEFAULT_CLASS : spec.slice(at + 1) + '.class';
+  if (!classCache.has(clsPath)) {
+    classCache.set(clsPath, readZipEntry(jar, clsPath));
   }
-  for (const sym of expectAbsent) {
-    check(`已清除旧符号 ${sym}`, !entityClass.includes(Buffer.from(sym)));
+  return { name: at < 0 ? spec : spec.slice(0, at), bytes: classCache.get(clsPath), clsPath };
+}
+
+const entityClass = readZipEntry(jar, DEFAULT_CLASS);
+for (const spec of expectPresent) {
+  const { name, bytes: cls, clsPath } = classOf(spec);
+  if (!cls) {
+    check(`含新增符号 ${name}`, false, `类不存在：${clsPath}`);
+  } else {
+    check(`含新增符号 ${name}`, cls.includes(Buffer.from(name)), clsPath);
+  }
+}
+for (const spec of expectAbsent) {
+  const { name, bytes: cls, clsPath } = classOf(spec);
+  if (!cls) {
+    check(`已清除旧符号 ${name}`, false, `类不存在：${clsPath}`);
+  } else {
+    check(`已清除旧符号 ${name}`, !cls.includes(Buffer.from(name)), clsPath);
   }
 }
 

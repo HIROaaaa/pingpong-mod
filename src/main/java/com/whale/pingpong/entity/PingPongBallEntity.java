@@ -233,34 +233,57 @@ public class PingPongBallEntity extends Entity {
 	/** 抛出后多少 tick 内不与抛球者本人碰撞（贴身球会被自己的碰撞箱挡住） */
 	private static final int NO_SELF_COLLISION_TICKS = 2;
 
+	/** 抛球出手点：沿视线水平方向前移多少格（举在面前） */
+	private static final double TOSS_FORWARD = 0.45;
+	/** 抛球出手点比眼睛低多少格（手举在面前，略低于视线） */
+	private static final double TOSS_DROP = 0.15;
+	/** 身前被挡住时，向上重试的最大次数（每次 +0.15 格） */
+	private static final int TOSS_RETRY_MAX = 4;
+
 	/**
 	 * 把球【垂直上抛】—— 用户要的发球方式：球自己上抛、落下，玩家调好拍形去打。
 	 *
-	 * 【两种写法都不往前】用户要求「抛球暂时垂直向上抛，现在抛球会有一点向前」：
-	 * 1. 水平速度必须是 0（旧版有个 TOSS_DRIFT=0.06 的水平漂移，那 0.06 就是"向前"的来源）；
-	 * 2. 生成点必须在玩家**正上方**。旧版生成在「视线水平前方 0.55 格」——
-	 *    平面抛体落回原生成点，所以球会在身前那条竖直线上起落，看着仍然是"往前抛出去了"。
-	 * 现在生成在头顶上方 0.3 格（一次跳跃就能穿过的空间也放得下），落回来正好在脚边。
+	 * <h3>出手点：为什么在身前 0.45 格</h3>
+	 * 两次实测反馈把这件事推到了现在的位置：
+	 * <ol>
+	 *   <li>用户要求「抛球暂时垂直向上抛，现在抛球会有一点向前」→ 去掉水平漂移（TOSS_DRIFT），
+	 *       并把生成点移到玩家**正上方**；</li>
+	 *   <li>但正上方马上就出了新问题：用户原话「抛球不要从玩家身上开始抛球，要从玩家视角前面一点，
+	 *       现在发球直接从身体里发出去了，根本看不见球」—— 生成在身体正中，球从脖子/胸口冒出来。</li>
+	 * </ol>
+	 * 现在取「眼睛 + 视线水平方向 × 0.45 格、低 0.15 格」：举在面前的球，第一人称看得见，
+	 * 也符合抛球的动作。**注意：出手点前移不等于往前飞** —— 水平速度仍然是严格 0，
+	 * 球从那个点垂直起落（这正是两次需求不冲突的地方）。
 	 *
 	 * @param verticalSpeed 竖直初速度（格/tick）。0.20~0.32 → 峰值约 0.67~1.7 格、滞空 13~21 tick
 	 */
 	public static PingPongBallEntity toss(World world, PlayerEntity thrower, double verticalSpeed) {
 		PingPongBallEntity ball = new PingPongBallEntity(ModEntities.PINGPONG_BALL, world);
 
-		double spawnY = thrower.getEyePos().y + 0.30;
-		Vec3d pos = new Vec3d(thrower.getX(), spawnY, thrower.getZ());
-		// 生成点被方块占住（例如 2 格高的天花板下）就退回「身前 0.55 格、眼高」，
-		// 宁可带一点点位移，也不能让球卡在墙壁里出不来。
-		if (!world.isSpaceEmpty(ball, ball.getBoundingBox().offset(pos.subtract(ball.getPos())))) {
-			Vec3d look = thrower.getRotationVec(1.0F);
-			Vec3d flat = new Vec3d(look.x, 0.0, look.z);
-			flat = flat.lengthSquared() < 1.0e-6 ? new Vec3d(0.0, 0.0, 1.0) : flat.normalize();
-			pos = thrower.getEyePos().add(flat.multiply(0.55));
+		Vec3d look = thrower.getRotationVec(1.0F);
+		Vec3d flat = new Vec3d(look.x, 0.0, look.z);
+		flat = flat.lengthSquared() < 1.0e-6 ? new Vec3d(0.0, 0.0, 1.0) : flat.normalize();
+		Vec3d base = thrower.getEyePos().add(flat.multiply(TOSS_FORWARD)).add(0.0, -TOSS_DROP, 0.0);
+
+		// 身前被方块挡住（贴着墙、或面前就是球台/方块）时逐步抬高出手点，
+		// 一路都放不下才退回「正上方」——保证球永远有地方出现，不会卡在方块里。
+		Vec3d pos = base;
+		boolean placed = false;
+		for (int i = 0; i <= TOSS_RETRY_MAX; i++) {
+			Vec3d candidate = base.add(0.0, 0.15 * i, 0.0);
+			if (world.isSpaceEmpty(ball, ball.getBoundingBox().offset(candidate.subtract(ball.getPos())))) {
+				pos = candidate;
+				placed = true;
+				break;
+			}
+		}
+		if (!placed) {
+			pos = new Vec3d(thrower.getX(), thrower.getEyePos().y + 0.30, thrower.getZ());
 		}
 
 		ball.refreshPositionAndAngles(pos.x, pos.y, pos.z, thrower.getYaw(), thrower.getPitch());
 		ball.setOwner(thrower);
-		// 水平分量严格为 0：这就是「纯垂直向上抛」。
+		// 水平分量严格为 0：这就是「纯垂直向上抛」（与出手点前移不冲突）。
 		ball.setPhysicsVelocity(new Vec3d(0.0, verticalSpeed, 0.0));
 		ball.setSpin(Vec3d.ZERO);
 		ball.noSelfCollisionTicks = NO_SELF_COLLISION_TICKS;

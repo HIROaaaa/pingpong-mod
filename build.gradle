@@ -24,11 +24,48 @@ loom {
 	}
 }
 
+// 【五期 M6：顺滑动作】playerAnimator 提供玩家骨骼动画 API（肩/躯干/手臂旋转）。
+//
+// 【为什么不用 maven 坐标】实测本机网络下 Modrinth 的 maven 端点一律 404：
+// `https://api.modrinth.com/maven/maven/modrinth/playeranimator/<版本>/<版本>.jar`
+// —— 版本号写 `1.0.2-rc1+1.20`、`1.0.2-rc1+1.20-fabric`、URL 编码 `+`，以及
+// `maven-metadata.xml` 全都试过，一个都不通。所以不能用 `modImplementation "maven.modrinth:..."`。
+//
+// 【为什么不用提交进仓库的本地 jar】本仓库的 pre-commit 门禁**刻意禁止提交二进制包**
+// （只放行 gradle-wrapper.jar），这里也不该破例：第三方 jar 进 Git 会随仓库无限膨胀。
+//
+// 【所以：构建时下载到 build/ 下】下过一次就留着（离线构建也能用），仓库里只存 URL 与版本；
+// 玩家侧依旧是从 Modrinth 自行安装（普通 depends，非 Jar-in-Jar —— 用户拍板）。
+//
+// 【为什么是在**配置阶段**下载，而不是做成一个 task】实测：loom 在配置期就会对
+// `files(...)` 依赖算哈希，文件不存在直接抛
+// `UncheckedIOException: Failed to get file hash of …`，而"把下载任务挂在 compileJava 前面"
+// 救不了它（配置早于任何任务执行）。所以这里在脚本顶层同步下载 —— 代价是配置期有一次 IO，
+// 换来的是一次配好、之后永远命中本地缓存（文件已存在就跳过）。
+def playerAnimatorVersion = project.playeranimator_version
+def playerAnimatorDir = layout.buildDirectory.dir("libs-external").get().asFile
+def playerAnimatorJar = new File(playerAnimatorDir, "player-animation-lib-fabric-${playerAnimatorVersion}.jar")
+if (!playerAnimatorJar.exists() || playerAnimatorJar.length() < 100000L) {
+	playerAnimatorDir.mkdirs()
+	def url = "https://cdn.modrinth.com/data/gedNE4y2/versions/yDqYTUaf/" +
+			"player-animation-lib-fabric-${playerAnimatorVersion.replace('+', '%2B')}.jar"
+	logger.lifecycle("下载 playerAnimator（开发期依赖）：${url}")
+	playerAnimatorJar.withOutputStream { out ->
+		new URL(url).openStream().withStream { input -> out << input }
+	}
+	if (playerAnimatorJar.length() < 100000L) {
+		throw new GradleException("playerAnimator 下载失败或文件不完整：${playerAnimatorJar}")
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	// 用 modImplementation（而非 compileOnly）：dev 环境 runClient 要真的加载它，
+	// 否则一调 API 就 NoClassDefFoundError，没法自测。
+	modImplementation files(playerAnimatorJar)
 }
 
 processResources {

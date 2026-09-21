@@ -1,7 +1,7 @@
 # 1.16.5 API 差异扫描（M5 工作清单）
 
-> 生成时间：2026-09-21 04:14:39
-> 扫描范围：27 个源文件
+> 生成时间：2026-09-21 04:44:01
+> 扫描范围：29 个源文件
 
 ## 总览
 
@@ -13,12 +13,12 @@
 | 物品设置 | **3** | `new Item.Settings()` → `new Item.Settings().group(...) —— 1.16.5 用 FabricItemGroupBuilder 而不是 ItemGroupEvents` |
 | 创造页签 API | **3** | `FabricItemGroup.builder() / ItemGroupEvents.modifyEntriesEvent` → `FabricItemGroupBuilder.create(id)…build()` |
 | 实体类型构造 | **2** | `FabricEntityTypeBuilder.create(SpawnGroup, factory).dimensions(…).build()` → `1.16.5 同样有 FabricEntityTypeBuilder，但 dimensions 的类型与 build 的泛型不同` |
-| Mixin 目标签名 | **7** | `Camera.update / HeldItemRenderer.renderItem / Mouse.onMouseScroll …` → `1.16.5 的方法名与参数个数都不同（如 HeldItemRenderer 在 1.16.5 是 renderItem 的旧签名）` |
+| Mixin 目标签名 | **8** | `Camera.update / HeldItemRenderer.renderItem / Mouse.onMouseScroll …` → `1.16.5 的方法名与参数个数都不同（如 HeldItemRenderer 在 1.16.5 是 renderItem 的旧签名）` |
 | 玩家持久数据 | **2** | `Entity.writeCustomDataToNbt(NbtCompound)` → `1.16.5 的 NBT 读写接口名与参数不同（且 NbtCompound 在 1.16.5 叫 CompoundTag）` |
 | 网络注册 | **11** | `ServerPlayNetworking.registerGlobalReceiver(id, (server,player,handler,buf,sender)->…)` → `1.16.5 的回调参数个数/顺序不同，且 ClientPlayNetworking 多一个 boolean 参数` |
 | 按键注册 | **3** | `KeyBindingHelper.registerKeyBinding(new KeyBinding(...))` → `1.16.5 同样有 KeyBindingHelper，但 KeyBinding 构造签名不同` |
 
-**合计 44 处**需要版本分支。
+**合计 45 处**需要版本分支。
 
 ## 明细
 
@@ -54,8 +54,8 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:250` | `double spawnY = thrower.getEyePos().y + 0.30;` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:258` | `pos = thrower.getEyePos().add(flat.multiply(0.55));` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:266` | `Vec3d base = thrower.getEyePos().add(flat.multiply(TOSS_FORWARD)).add(0.0, -TOSS_DROP, 0.0);` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:281` | `pos = new Vec3d(thrower.getX(), thrower.getEyePos().y + 0.30, thrower.getZ());` |
 | `src/main/java/com/whale/pingpong/item/PingPongPaddleItem.java:112` | `return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand, windUp, inTable);` |
 | `src/main/java/com/whale/pingpong/mixin/CameraMixin.java:70` | `Vec3d eye = focusedEntity.getEyePos();` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:81` | `double eyeY = player.getEyePos().y;` |
@@ -97,7 +97,7 @@
 | `src/main/java/com/whale/pingpong/entity/ModEntities.java:4` | `import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;` |
 | `src/main/java/com/whale/pingpong/entity/ModEntities.java:22` | `FabricEntityTypeBuilder.<PingPongBallEntity>create(SpawnGroup.MISC, PingPongBallEntity::new)` |
 
-### Mixin 目标签名（7 处）
+### Mixin 目标签名（8 处）
 
 - 1.20.1：`Camera.update / HeldItemRenderer.renderItem / Mouse.onMouseScroll …`
 - 1.16.5：`1.16.5 的方法名与参数个数都不同（如 HeldItemRenderer 在 1.16.5 是 renderItem 的旧签名）`
@@ -110,8 +110,9 @@
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:85` | `@Inject(method = "renderFirstPersonItem", at = @At("RETURN"))` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:101` | `@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:147` | `@Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;"` |
-| `src/main/java/com/whale/pingpong/mixin/MinecraftClientMixin.java:22` | `@Inject(method = "doAttack", at = @At("HEAD"))` |
+| `src/main/java/com/whale/pingpong/mixin/MinecraftClientMixin.java:31` | `@Inject(method = "doAttack", at = @At("HEAD"), cancellable = true)` |
 | `src/main/java/com/whale/pingpong/mixin/MouseMixin.java:29` | `@Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)` |
+| `src/main/java/com/whale/pingpong/mixin/PlayerEntityModelMixin.java:42` | `@Inject(method = "setAngles", at = @At("RETURN"))` |
 
 ### 玩家持久数据（2 处）
 
@@ -121,8 +122,8 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:342` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:353` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:365` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:376` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
 
 ### 网络注册（11 处）
 

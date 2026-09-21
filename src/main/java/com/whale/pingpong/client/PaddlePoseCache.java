@@ -61,6 +61,20 @@ public final class PaddlePoseCache {
 		}
 	}
 
+	/**
+	 * 挥拍进度 0~1（和本地玩家的 {@code PingPongClientState.swingProgress()} 同一语义）。
+	 *
+	 * 【为什么需要它】M6 的动作系统要按三段式（引拍/触球/随挥）给骨骼摆姿势，
+	 * 而其他玩家的挥拍是服务端广播过来的「剩余 tick 数」——这里换算成进度，
+	 * 于是本地和远程玩家走的是同一套动作公式。
+	 */
+	public static float swingProgressOf(Pose pose) {
+		if (pose == null || pose.swingTicks <= 0) {
+			return 0.0F;
+		}
+		return 1.0F - (float) pose.swingTicks / PingPongClientState.SWING_TICKS;
+	}
+
 	/** 退出世界时清空。 */
 	public static void clear() {
 		POSES.clear();
