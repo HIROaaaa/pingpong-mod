@@ -54,6 +54,8 @@ public final class PingPongModelPose {
 		float curOffArmPitch;
 		float curElbowBend;
 		boolean active;
+		/** 上一帧的时间戳（纳秒），用于把缓动做成"帧率无关" */
+		long lastFrameNanos;
 
 		boolean isRest() {
 			return !active
@@ -93,11 +95,17 @@ public final class PingPongModelPose {
 	/** 手型符号总开关：实测左右反了就改成 -1.0F */
 	private static final float HANDED_FLIP = 1.0F;
 
-	/** 缓动系数：引拍慢（做出蓄势感） / 触球快（出拍干脆） / 随挥缓（收得住） */
-	private static final float EASE_WINDUP = 0.30F;
-	private static final float EASE_FORWARD = 0.62F;
-	private static final float EASE_FOLLOW = 0.26F;
-	private static final float EASE_IDLE = 0.18F;
+	/**
+	 * 缓动系数：**每 1/20 秒**朝目标收敛的比例（实际按帧长折算，见 {@link #easeForFrame}）。
+	 *
+	 * 【为什么调慢过】原来这几档是 0.18~0.62，看着像"每帧走一大步"——
+	 * 高帧率下几乎两三帧就到位，动作就变成"跳过去"。现在整体放缓，
+	 * 60fps 下引拍约 0.4 秒、前挥约 0.2 秒，符合"引拍慢、出拍快、随挥缓"的手感。
+	 */
+	private static final float EASE_WINDUP = 0.15F;
+	private static final float EASE_FORWARD = 0.28F;
+	private static final float EASE_FOLLOW = 0.13F;
+	private static final float EASE_IDLE = 0.10F;
 
 	// ---- 肘部弯曲（大臂/小臂的折角，见 applyElbowBend）----
 	/** 持拍待机的基础弯曲（度）：手臂不会伸得笔直 */
@@ -159,18 +167,23 @@ public final class PingPongModelPose {
 			windup = Math.sqrt(MathHelper.clamp(charge, 0.0F, 1.0F));
 			forward = 0.0;
 			follow = 0.0;
-		} else if (swing < 0.35F) {
-			windup = 1.0;          // 松手瞬间仍保持引拍姿态，不做跳变
-			forward = 0.0;
-			follow = 0.0;
-		} else if (swing < 0.75F) {
-			windup = 1.0 - (swing - 0.35F) / 0.40F;
-			forward = (swing - 0.35F) / 0.40F;
-			follow = 0.0;
 		} else {
-			windup = 0.0;
-			forward = 1.0;
-			follow = (swing - 0.75F) / 0.25F;
+			/*
+			 * 【挥拍：权重平滑混合，不再"顺序切换"（用户反馈"动作还是很僵硬"）】
+			 *
+			 * 旧写法是 if/else 分段：swing<0.35 只给引拍、0.35~0.75 只给前挥、之后只给随挥 ——
+			 * 每段边界上权重是**阶跃**的，动作会"咔"地跳一下，看起来就是僵硬。
+			 *
+			 * 现在改成**相邻相位之间用 smoothstep 交叉淡入淡出**：
+			 * 引拍→前挥在 0.0~0.45 之间过渡，前挥→随挥在 0.55~1.0 之间过渡。
+			 * 于是任何时刻都是两段姿态按比例混合，没有阶跃点。
+			 */
+			double t = MathHelper.clamp(swing, 0.0F, 1.0F);
+			double blendUp = smoothstep(t / 0.45);              // 0 → 1：引拍交棒给前挥
+			double blendFollow = smoothstep((t - 0.55) / 0.45); // 0 → 1：前挥交棒给随挥
+			windup = 1.0 - blendUp;
+			forward = blendUp * (1.0 - blendFollow);
+			follow = blendUp * blendFollow;
 		}
 
 		StrokeType s = stroke == null ? StrokeType.DRIVE_FOREHAND : stroke;
@@ -215,7 +228,15 @@ public final class PingPongModelPose {
 	public static void apply(ModelPart rightArm, ModelPart leftArm, ModelPart body, ModelPart head,
 							 ModelPart hat, boolean offHandLeft, float ease) {
 		PoseState st = current;
-		float k = MathHelper.clamp(ease, 0.0F, 1.0F);
+		/*
+		 * 【时间基准缓动（用户反馈"动作还是很僵硬"）】
+		 *
+		 * 旧写法是「每帧朝目标走固定比例 k」，而 k 是从挥拍进度里拿的固定表 ——
+		 * 于是 30fps 和 240fps 的收敛速度差 8 倍，高帧率下动作又会显得"一顿一顿"。
+		 * 现在把 k 解释成"每 1/20 秒收敛的比例"，按**这一帧实际过了多久**折算：
+		 * 无论帧率高低，同一个动作在同样的时间里走完同样的距离。
+		 */
+		float k = easeForFrame(ease);
 		if (st.isRest()) {
 			return;   // 完全回到原版姿态后就不再碰模型（空手走路保持原样）
 		}
@@ -276,29 +297,55 @@ public final class PingPongModelPose {
 	}
 
 	/**
-	 * 让手臂在**肘部**弯曲（大臂/小臂的折角）。
+	 * 让手臂/躯干在**关节处**弯曲（大臂与小臂的折角、腰胯之间的过渡）。
 	 *
-	 * <p>普通 ModelPart 只会绕枢轴**刚体旋转**，做不出"手臂打弯"；真正的形变要靠
-	 * playerAnimator 的 bend 接口（顶点级重排，底层 bendy-lib）。
-	 * 这里用反射调用，理由是：<b>bendy-lib 是可选的</b> —— 没装时 playerAnimator 内部是
-	 * 一个空实现，直接引用它的类不会崩，但用反射写就不必把 playerAnimator 的编译期依赖
-	 * 泄漏到更多地方，也方便将来它改签名时只在这里改。
+	 * <p>普通 ModelPart 只会绕枢轴**刚体旋转**，做不出"打弯"；真正的形变要靠
+	 * playerAnimator 的 bend 接口（顶点级重排，底层是 **bendy-lib**）。
+	 *
+	 * <p>【重要：装没装 bendy-lib 决定这里有没有效果】
+	 * playerAnimator 在静态初始化时检测 bendy-lib 是否加载，没装就把实现换成
+	 * {@code DummyBendable}（空实现）—— 所以<b>调用不报错、但什么都不会弯</b>。
+	 * 这正是"我看着加了弯曲代码却没效果"的原因。现在先查 {@code Helper.isBendEnabled()}
+	 * 再决定要不要调，并把结果缓存下来避免每帧走反射。
 	 *
 	 * @param bendDegrees 弯曲角度（度），0 = 伸直
 	 */
-	private static void applyElbowBend(ModelPart arm, float bendDegrees) {
-		if (Math.abs(bendDegrees) < 0.5F || arm == null) {
+	private static void applyElbowBend(ModelPart part, float bendDegrees) {
+		if (Math.abs(bendDegrees) < 0.5F || part == null || !bendAvailable()) {
 			return;
 		}
 		try {
 			Class<?> helperClass = Class.forName("dev.kosmx.playerAnim.impl.animation.IBendHelper");
 			Object helper = helperClass.getField("INSTANCE").get(null);
 			helperClass.getMethod("bend", ModelPart.class, float.class, float.class)
-					.invoke(helper, arm, toRadians(bendDegrees), 0.0F);
+					.invoke(helper, part, toRadians(bendDegrees), 0.0F);
 		} catch (Throwable ignored) {
-			// 没装 bendy-lib / playerAnimator 换了实现：动作照常，只是手臂不弯。
-			// 这是可选依赖的正常降级，不该刷日志、更不该崩。
+			// playerAnimator 换了实现/签名：动作照常，只是不弯。可选依赖的正常降级。
 		}
+	}
+
+	private static boolean bendChecked;
+	private static boolean bendAvailable;
+
+	/** bendy-lib 是否可用（只探测一次）。可用时才值得走反射调用。 */
+	private static boolean bendAvailable() {
+		if (bendChecked) {
+			return bendAvailable;
+		}
+		bendChecked = true;
+		try {
+			Class<?> helper = Class.forName("dev.kosmx.playerAnim.impl.Helper");
+			Object enabled = helper.getMethod("isBendEnabled").invoke(null);
+			bendAvailable = enabled instanceof Boolean && (Boolean) enabled;
+			if (!bendAvailable) {
+				com.whale.pingpong.PingPongMod.LOGGER.info(
+						"[pingpong] 未检测到 bendy-lib：动作照常播放，但手臂/躯干的弯曲效果不会出现。"
+								+ "想看到弯曲请安装 bendy-lib（客户端 mod）。");
+			}
+		} catch (Throwable ignored) {
+			bendAvailable = false;
+		}
+		return bendAvailable;
 	}
 
 	private static float ease(float currentValue, float target, float k) {
@@ -307,6 +354,30 @@ public final class PingPongModelPose {
 
 	private static float toRadians(float degrees) {
 		return degrees * 0.017453292F;
+	}
+
+	/** smoothstep：两端导数为 0 的插值，用来做相位之间的交叉淡入淡出（消除"阶跃感"）。 */
+	private static double smoothstep(double t) {
+		double x = MathHelper.clamp(t, 0.0, 1.0);
+		return x * x * (3.0 - 2.0 * x);
+	}
+
+	/**
+	 * 把"每 1/20 秒的收敛比例"折算成**这一帧**该用的比例。
+	 *
+	 * <p>帧长按最近两次渲染的时间差算，并夹在 4~100ms 之间 ——
+	 * 卡顿一下不至于把动作一次性拉满，高帧率下也不会慢得像树懒。
+	 */
+	private static float easeForFrame(float perTickRatio) {
+		float ratio = MathHelper.clamp(perTickRatio, 0.01F, 1.0F);
+		long now = System.nanoTime();
+		long last = current.lastFrameNanos;
+		current.lastFrameNanos = now;
+		if (last == 0L) {
+			return ratio;   // 第一帧还没有时间差，先用原值
+		}
+		float frameSeconds = MathHelper.clamp((now - last) / 1.0e9F, 0.004F, 0.1F);
+		return (float) (1.0 - Math.pow(1.0 - ratio, frameSeconds * 20.0));
 	}
 
 	/** 当前这一帧的缓动系数（引拍慢 / 触球快 / 随挥缓）。 */
