@@ -1,7 +1,7 @@
 # 1.16.5 API 差异扫描（M5 工作清单）
 
-> 生成时间：2026-09-21 10:18:26
-> 扫描范围：30 个源文件
+> 生成时间：2026-09-22 15:14:04
+> 扫描范围：37 个源文件
 
 ## 总览
 
@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | 注册表入口 | **5** | `net.minecraft.registry.Registries.ITEM / BLOCK / ENTITY_TYPE / ITEM_GROUP` → `net.minecraft.util.registry.Registry.ITEM / BLOCK / ENTITY_TYPE / ITEM_GROUP` |
 | 方块设置构造 | **1** | `AbstractBlock.Settings.create()` → `AbstractBlock.Settings.of(Material.XX)` |
-| 玩家眼睛位置 | **7** | `Entity.getEyePos()` → `没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())` |
+| 玩家眼睛位置 | **8** | `Entity.getEyePos()` → `没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())` |
 | 物品设置 | **3** | `new Item.Settings()` → `new Item.Settings().group(...) —— 1.16.5 用 FabricItemGroupBuilder 而不是 ItemGroupEvents` |
 | 创造页签 API | **3** | `FabricItemGroup.builder() / ItemGroupEvents.modifyEntriesEvent` → `FabricItemGroupBuilder.create(id)…build()` |
 | 实体类型构造 | **2** | `FabricEntityTypeBuilder.create(SpawnGroup, factory).dimensions(…).build()` → `1.16.5 同样有 FabricEntityTypeBuilder，但 dimensions 的类型与 build 的泛型不同` |
@@ -18,7 +18,7 @@
 | 网络注册 | **11** | `ServerPlayNetworking.registerGlobalReceiver(id, (server,player,handler,buf,sender)->…)` → `1.16.5 的回调参数个数/顺序不同，且 ClientPlayNetworking 多一个 boolean 参数` |
 | 按键注册 | **3** | `KeyBindingHelper.registerKeyBinding(new KeyBinding(...))` → `1.16.5 同样有 KeyBindingHelper，但 KeyBinding 构造签名不同` |
 
-**合计 45 处**需要版本分支。
+**合计 46 处**需要版本分支。
 
 ## 明细
 
@@ -46,7 +46,7 @@
 | --- | --- |
 | `src/main/java/com/whale/pingpong/block/ModBlocks.java:15` | `AbstractBlock.Settings.create()` |
 
-### 玩家眼睛位置（7 处）
+### 玩家眼睛位置（8 处）
 
 - 1.20.1：`Entity.getEyePos()`
 - 1.16.5：`没有这个方法：用 new Vec3d(getX(), getEyeY(), getZ())`
@@ -54,13 +54,14 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:266` | `Vec3d base = thrower.getEyePos().add(flat.multiply(TOSS_FORWARD)).add(0.0, -TOSS_DROP, 0.0);` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:281` | `pos = new Vec3d(thrower.getX(), thrower.getEyePos().y + 0.30, thrower.getZ());` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:302` | `Vec3d base = thrower.getEyePos().add(flat.multiply(TOSS_FORWARD)).add(0.0, -TOSS_DROP, 0.0);` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:317` | `pos = new Vec3d(thrower.getX(), thrower.getEyePos().y + 0.30, thrower.getZ());` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:432` | `Vec3d target = owner.getEyePos();` |
 | `src/main/java/com/whale/pingpong/item/PingPongPaddleItem.java:112` | `return TableGeometry.paddlePoint(player.getEyePos(), look, outward, hand, windUp, inTable);` |
 | `src/main/java/com/whale/pingpong/mixin/CameraMixin.java:70` | `Vec3d eye = focusedEntity.getEyePos();` |
 | `src/main/java/com/whale/pingpong/mixin/HeldItemRendererMixin.java:81` | `double eyeY = player.getEyePos().y;` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:347` | `Vec3d eyePos = player.getEyePos();` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:399` | `Vec3d eye = player.getEyePos();` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:366` | `Vec3d eyePos = player.getEyePos();` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:434` | `Vec3d eye = player.getEyePos();` |
 
 ### 物品设置（3 处）
 
@@ -122,8 +123,8 @@
 
 | 位置 | 代码 |
 | --- | --- |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:365` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
-| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:376` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:469` | `protected void writeCustomDataToNbt(NbtCompound nbt) {` |
+| `src/main/java/com/whale/pingpong/entity/PingPongBallEntity.java:480` | `protected void readCustomDataFromNbt(NbtCompound nbt) {` |
 
 ### 网络注册（11 处）
 
@@ -134,14 +135,14 @@
 | 位置 | 代码 |
 | --- | --- |
 | `src/main/java/com/whale/pingpong/net/ModNetworking.java:15` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:75` | `ServerPlayNetworking.registerGlobalReceiver(ACTION_CHANNEL, (server, player, handler, buf, responseSender) -> ` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:88` | `ClientPlayNetworking.registerGlobalReceiver(POSE_CHANNEL, (client, handler, buf, responseSender) -> {` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:100` | `ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:199` | `ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:221` | `java.util.Set<ServerPlayerEntity> receivers = new java.util.HashSet<>(PlayerLookup.tracking(ball));` |
-| `src/main/java/com/whale/pingpong/net/ModNetworking.java:231` | `ServerPlayNetworking.send(player, MOTION_CHANNEL, buf);` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:87` | `ServerPlayNetworking.registerGlobalReceiver(ACTION_CHANNEL, (server, player, handler, buf, responseSender) -> ` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:100` | `ClientPlayNetworking.registerGlobalReceiver(POSE_CHANNEL, (client, handler, buf, responseSender) -> {` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:112` | `ClientPlayNetworking.registerGlobalReceiver(MOTION_CHANNEL, (client, handler, buf, responseSender) -> {` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:211` | `ServerPlayNetworking.send(receiver, POSE_CHANNEL, buf);` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:233` | `java.util.Set<ServerPlayerEntity> receivers = new java.util.HashSet<>(PlayerLookup.tracking(ball));` |
+| `src/main/java/com/whale/pingpong/net/ModNetworking.java:243` | `ServerPlayNetworking.send(player, MOTION_CHANNEL, buf);` |
 | `src/main/java/com/whale/pingpong/PingPongMod.java:13` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
-| `src/main/java/com/whale/pingpong/PingPongMod.java:60` | `for (ServerPlayerEntity other : PlayerLookup.tracking(joined)) {` |
+| `src/main/java/com/whale/pingpong/PingPongMod.java:81` | `for (ServerPlayerEntity other : PlayerLookup.tracking(joined)) {` |
 | `src/main/java/com/whale/pingpong/server/PaddlePoseTracker.java:5` | `import net.fabricmc.fabric.api.networking.v1.PlayerLookup;` |
 | `src/main/java/com/whale/pingpong/server/PaddlePoseTracker.java:68` | `for (ServerPlayerEntity receiver : PlayerLookup.tracking(player)) {` |
 
@@ -154,5 +155,5 @@
 | 位置 | 代码 |
 | --- | --- |
 | `src/main/java/com/whale/pingpong/client/PingPongClient.java:13` | `import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:76` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
-| `src/main/java/com/whale/pingpong/client/PingPongClient.java:78` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:99` | `keySwitchHand = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
+| `src/main/java/com/whale/pingpong/client/PingPongClient.java:101` | `keyBallCam = KeyBindingHelper.registerKeyBinding(new KeyBinding(` |
