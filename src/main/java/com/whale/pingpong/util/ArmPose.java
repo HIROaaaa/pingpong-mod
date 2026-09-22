@@ -80,6 +80,9 @@ public final class ArmPose {
 		double windupRoll = -12.0;
 		double windupBodyYaw = -24.0;
 		double windupBodyPitch = -7.0;
+		/** 【2026-09-22 新增】手臂自身横向偏转（度）。只有反手拉球用，其余击球保持 0 = 沿用旧行为。 */
+		double windupArmYaw = 0.0;
+		double forwardArmYaw = 0.0;
 
 		// 前挥：扫到身前下方
 		double forwardPitch = -55.0;
@@ -123,23 +126,30 @@ public final class ArmPose {
 						// 【坦白】手臂只有 0.6875 格、手恒在过肩平面内，所以"明显往下沉"的幅度做不大，
 						// 视觉上的"往下"主要来自**前挥阶段的大幅上扫**（0.72 格，很明显）。
 						// 若用户仍觉得引拍不够低，下一步只能动身体（下蹲/俯身）而不是手臂角度。
-						// 【第四次修正（2026-09-22）：手臂要往胸前收，不要只往后收】
-						// 用户第三次原话：「手臂要往胸前收，不要只往后收」。
-						// 上一版只调了 pitch（前后/高度），横向完全没动 —— 而**手的横向位置与手臂角度无关**
-						// （手恒在过肩竖直面内，x 恒等于肩的 x），横向只能靠**躯干转体 bodyYaw** 给。
-						// 这正是真人打球要转腰的原因，也是 ArmPose 类注释里那条约束。
-						//
-						// 数据（tools/_chest_sweep.mjs，三维含 bodyYaw）：
-						//   不转腰：引拍 x=−0.313 → 前挥 x=−0.313（横移 0，只有前后）
-						//   本组（引拍 yaw +28 / 前挥 yaw −30）：x 从 **−0.437 → +0.052**，横移 **0.49 格**
-						//   → 球拍从身体反手侧扫到中线（x≈0），就是"收向胸前"。
-						// 正手默认是反方向的（引拍 −24 / 前挥 +30），两者横移方向天然相反。
+						// 【第四、五次修正（2026-09-22）：横向收臂】
+						// 用户原话：「手臂要往胸前收，不要只往后收」→ 加 yaw 28/−30 →「手还是没有往里面收，
+						// 手臂要放到胸前的位置」→ 加大到 35/−40。
+						// 关键：**手的横向位置与手臂角度无关**（手恒在过肩竖直面内，x 恒等于肩的 x），
+						// 横向只能靠躯干转体 bodyYaw —— 这就是真人打球要转腰的原因。
+						// 数据（docs/archive/chest_sweep.mjs 三维计算，x 增大 = 朝身体中线收）：
+						//   不转腰   ：引拍 x=−0.313 → 前挥 x=−0.313（横移 0）
+						//   yaw 28/30：−0.437 → +0.052（横移 0.49 —— 用户反馈"还是没往里"）
+						//   yaw 38/45：−0.455 → +0.19（横移 **0.65** ← 本版取这组，球拍明确落到胸前中线里侧）
+						//   正手默认反方向（引拍 −24 / 前挥 +30），两者横移方向天然相反。
 						windupPitch = 0.0;
 						windupBodyPitch = 0.0;
 						windupRoll = -18.0;
-						windupBodyYaw = 28.0;    // 引拍时腰转向反手侧（球拍在外侧）
+						windupBodyYaw = 0.0;
 						forwardPitch = -80.0;
-						forwardBodyYaw = -30.0;  // 前挥时腰转向正手侧（球拍收向胸前中线）
+						forwardBodyYaw = 0.0;
+						// 【横向收臂的真正杠杆：armYaw（不是 bodyYaw）】
+						// 实测杠杆对照（tools/_arm_yaw_final.mjs）：
+						//   armYaw 实际 +45° → 球拍 x = +0.464（甩在身体外侧）
+						//   armYaw 实际 −25° → 球拍 x = +0.010（**正好收到胸前中线**）
+						// 而 bodyYaw 满程只有 0.2 格、且叠在"肩偏离躯干中心 1 像素"上 ≈ 0.01 格，几乎无效。
+						// 这两个常量会在下面乘 handed（反手 −1、正手 +1），所以反手的实际值取反号。
+						windupArmYaw = -45.0;
+						forwardArmYaw = 25.0;
 					}
 					break;
 				case PUSH_FOREHAND:
@@ -174,7 +184,7 @@ public final class ArmPose {
 		double fo = MathHelper.clamp(follow, 0.0, 1.0);
 
 		double outPitch = pitch + windupPitch * w + forwardPitch * f + followPitch * fo;
-		double outYaw = yaw;
+		double outYaw = yaw + (windupArmYaw * w + forwardArmYaw * f) * handed;
 		double outRoll = roll + windupRoll * w * handed;
 		double outBodyYaw = (windupBodyYaw * w + forwardBodyYaw * f) * handed;
 		double outBodyPitch = windupBodyPitch * w + forwardBodyPitch * f;
@@ -198,17 +208,35 @@ public final class ArmPose {
 		double handZ = ARM_LENGTH * Math.sin(pitch);
 		double handX = -SHOULDER_OFFSET * handed;
 
-		// 躯干转体：把手臂整体绕竖直轴转（横向位移就来自这里）
+		/*
+		 * 【2026-09-22 第六次修正：横向位移的真正杠杆是 **手臂自己的 yaw**】
+		 * 前面几版我都在调 bodyYaw（躯干转体），但实测算过：躯干转 60° 只能让球拍横移约 0.2 格，
+		 * 而且叠加在"肩只偏离躯干中心 1 像素"上，实际到手只有 0.01 格 —— 视觉上等于没动。
+		 *
+		 * 对照实测（tools/_arm_lateral_sweep.mjs）：
+		 *   armYaw −60°→+60°：球拍 x 从 +0.72 移到 −0.40（**满程 1.1 格**）
+		 *   bodyYaw 同样范围：x 只在 0.31 ↔ 0.54 之间（约 0.2 格）
+		 * 所以"手臂收向胸前"必须靠 armYaw。这里补上这段几何：
+		 * 手在过肩平面内旋转后，先绕 Y 转 armYaw（把手甩到身体内侧/外侧），再叠躯干。
+		 */
+		double armYaw = Math.toRadians(angles.yaw);
+		double armRoll = Math.toRadians(angles.roll);
+		double rollX = handX * Math.cos(armRoll) - handY * Math.sin(armRoll);
+		double rollY = handX * Math.sin(armRoll) + handY * Math.cos(armRoll);
+		double yawX = rollX * Math.cos(armYaw) + handZ * Math.sin(armYaw);
+		double yawZ = -rollX * Math.sin(armYaw) + handZ * Math.cos(armYaw);
+
+		// 躯干转体：把手臂整体绕竖直轴转
 		double bodyYaw = Math.toRadians(angles.bodyYaw);
 		double cosB = Math.cos(bodyYaw);
 		double sinB = Math.sin(bodyYaw);
-		double rotX = handX * cosB + handZ * sinB;
-		double rotZ = -handX * sinB + handZ * cosB;
+		double rotX = yawX * cosB + yawZ * sinB;
+		double rotZ = -yawX * sinB + yawZ * cosB;
 
 		// 躯干前倾/后仰
 		double bodyPitch = Math.toRadians(angles.bodyPitch);
-		double y2 = handY * Math.cos(bodyPitch) - rotZ * Math.sin(bodyPitch);
-		double z2 = handY * Math.sin(bodyPitch) + rotZ * Math.cos(bodyPitch);
+		double y2 = rollY * Math.cos(bodyPitch) - rotZ * Math.sin(bodyPitch);
+		double z2 = rollY * Math.sin(bodyPitch) + rotZ * Math.cos(bodyPitch);
 
 		// 球拍再往手外延伸：沿手臂方向继续出去
 		double dirY = Math.sin(pitch + bodyPitch);
