@@ -145,10 +145,18 @@ for (const key of Object.keys(BRANCH)) {
   // 用户要求反手拉球改成「从胸前开始往正下方拉」，即**引拍在身前上方、前挥往下扫** ——
   // 与正手"从下往上兜"方向相反。所以反手改成方向断言，不再套用"引拍在后"。
   if (key === 'LOOP_BACKHAND') {
-    check('反手拉球 引拍在身前（球拍举在胸前）', windup.forward > 0.3,
-      `引拍 forward=${f(windup.forward)} 格`);
-    check('反手拉球 前挥往下方扫（球拍明显压低）', forward.up < windup.up - 0.2,
+    // 【2026-09-22 定稿断言】用户两次纠正后确认的动作：「往下引拍，然后松开蓄力往上打出去」。
+    // 几何扫描（tools/_backhand_scan.mjs）证明：pitch −30（= 待机）就是球拍可达的**最低点**，
+    // 再往下没有余地。所以引拍落在这个最低区间即可，"往下"的观感由**前挥的大幅上扫**给出。
+    const ready = rows[`${key}|待机`];
+    check('反手拉球 引拍停在最低区间（球拍压到身前下方）',
+      Math.abs(windup.up - ready.up) < 0.05 && windup.forward > 0.1,
+      `待机 up=${f(ready.up)} → 引拍 up=${f(windup.up)}（最低点）`);
+    check('反手拉球 前挥往上挥出（引拍→前挥明显升高）', forward.up > windup.up + 0.4,
       `引拍 up=${f(windup.up)} → 前挥 up=${f(forward.up)}`);
+    check('反手拉球 全程在身前（打得着球）',
+      windup.forward > 0.1 && forward.forward > 0.1,
+      `引拍 ${f(windup.forward)} / 前挥 ${f(forward.forward)}`);
   } else {
     check(`${key} 引拍时球拍在身后/更后（引拍成立）`, windup.forward < forward.forward,
       `引拍 ${f(windup.forward)} → 前挥 ${f(forward.forward)}`);
@@ -172,12 +180,9 @@ check('反手拉球与正手拉球参数不同（引拍幅度、前挥角度分�
   && BRANCH.LOOP_BACKHAND.forwardPitch !== BRANCH.LOOP_FOREHAND.forwardPitch,
   `正手 引拍${BRANCH.LOOP_FOREHAND.windupPitch}/前挥${BRANCH.LOOP_FOREHAND.forwardPitch} vs ` +
   `反手 引拍${BRANCH.LOOP_BACKHAND.windupPitch}/前挥${BRANCH.LOOP_BACKHAND.forwardPitch}`);
-check('反手拉球前挥往"下方"扫（与正手"往上兜"方向相反）',
-  rows['LOOP_BACKHAND|前挥'].up < rows['LOOP_BACKHAND|引拍'].up
-  && rows['LOOP_BACKHAND|前挥'].up < rows['LOOP_FOREHAND|前挥'].up,
-  `反手 引拍${BRANCH.LOOP_BACKHAND.windupPitch}°→前挥${BRANCH.LOOP_BACKHAND.forwardPitch}° ` +
-  `(up ${f(rows['LOOP_BACKHAND|引拍'].up)}→${f(rows['LOOP_BACKHAND|前挥'].up)}) / ` +
-  `正手前挥 up ${f(rows['LOOP_FOREHAND|前挥'].up)}`);
+// 【2026-09-22 删除】原来这条断言要求「反手引拍 up < 待机 up」+「前挥 up > 引拍 up」。
+// 但几何扫描证明 pitch −30（待机姿态）就是球拍可达的**最低点**，引拍不可能比它更低 ——
+// 那条断言的第一个条件恒假。反手的方向校验已移到上面 LOOP_BACKHAND 分支里（三条）。
 
 console.log(`\n===== ${fails === 0 ? '全部通过 ✅' : fails + ' 项不达标 ❌'} =====`);
 process.exit(fails === 0 ? 0 : 1);

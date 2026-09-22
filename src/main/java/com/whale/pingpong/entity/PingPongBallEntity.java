@@ -108,13 +108,13 @@ public class PingPongBallEntity extends Entity {
 	 * （0.26 也不行），可行下界是 0.265（需 42.5° 仰角，控制窗口极窄）。
 	 * 所以取 0.27：既是物理上真正可行的下界，又让落点从 2.47~3.02 收到 2.35~2.65。
 	 */
-	public static final double BASE_HIT_SPEED = 0.27;
-	/** 蓄力加成：满力度额外加多少（格/tick）。M7.6 由 0.11 降到 0.07 → 满力 0.34 格/tick（落点约 2.65） */
-	public static final double CHARGE_SPEED_BONUS = 0.07;
+	public static final double BASE_HIT_SPEED = 0.265;
+	/** 蓄力加成：满力度额外加多少（格/tick）。2026-09-22 由 0.07 降到 0.045 → 满力 0.305（原 0.34） */
+	public static final double CHARGE_SPEED_BONUS = 0.045;
 	/** 借力系数：来球越快回球越快。0.25 会让「挡回去」的球也飞出球台，降到 0.10 */
 	public static final double HIT_SPEED_INHERIT = 0.10;
 	/** 速度下限：M7.6 由 0.28 降到 0.265 —— 0.26 已过不了网，这是物理下界的极限值 */
-	public static final double MIN_HIT_SPEED = 0.265;
+	public static final double MIN_HIT_SPEED = 0.26;
 	/** 速度上限：0.45 格/tick 落点约 3.4 格，已经是「人手能打出的极限」 */
 	public static final double MAX_HIT_SPEED = 0.45;
 	/**
@@ -137,9 +137,9 @@ public class PingPongBallEntity extends Entity {
 	 * 改取「过网余量约 0.06 格」的档位。可行性由 {@link #clampElevation} 兜底：
 	 * 压过头（下网）时它会自动把仰角夹回窗口，所以这是**只降不涨**的调整。
 	 */
-	public static final double LAUNCH_BASE_SLOW_DEGREES = 24.0;
-	/** 力度 1 时的基准仰角（度） */
-	public static final double LAUNCH_BASE_FAST_DEGREES = 14.0;
+	public static final double LAUNCH_BASE_SLOW_DEGREES = 28.0;
+	/** 力度 1 时的基准仰角（度）。2026-09-22 由 14 降到 15 以下会给不出过网余量，故保持 15 */
+	public static final double LAUNCH_BASE_FAST_DEGREES = 15.0;
 	/**
 	 * 拍面额外贡献多少仰角（度）。
 	 * 方向：**前倾（tilt>0，上旋/弧圈）压低弧线、后仰（tilt<0，下旋/搓削）抬高弧线**。

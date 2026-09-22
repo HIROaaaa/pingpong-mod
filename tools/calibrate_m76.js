@@ -25,8 +25,8 @@ const FAR_EDGE = 3.34;
 const CONTACT_H = TABLE_H + 0.23;
 
 // 真实代码里的仰角曲线（PingPongBallEntity）
-const LAUNCH_SLOW = 24.0;
-const LAUNCH_FAST = 14.0;
+const LAUNCH_SLOW = 28.0;
+const LAUNCH_FAST = 15.0;
 const MIN_ELEV = 6.0;
 
 function fly(v0, elevDeg) {
@@ -51,7 +51,7 @@ function fly(v0, elevDeg) {
 
 /** 扫出「这个速度最低能配多大仰角过网」，作为可行性下界（对应 Java 的 clampElevation） */
 function minElevFor(v0, margin = 0.02) {
-  for (let e = MIN_ELEV; e <= 60; e += 0.5) {
+  for (let e = MIN_ELEV; e <= 60; e += 0.1) {
     const r = fly(v0, e);
     if (r.net === null) continue;
     if (r.net >= margin && r.land > NET_X) return e;
@@ -84,16 +84,16 @@ function evaluate(name, BASE, BONUS, FLOOR_SPEED, CAP) {
   return bad;
 }
 
-console.log('=== 0. 可行性下界：多低的初速能过网 ===');
-for (const v of [0.24, 0.25, 0.26, 0.265, 0.27, 0.28, 0.30]) {
+console.log('=== 0. 可行性下界：多低的初速能过网（0.1° 精度）===');
+for (const v of [0.25, 0.26, 0.265, 0.27, 0.28, 0.30]) {
   const need = minElevFor(v);
   console.log(`   v=${v.toFixed(3)}  ${need === null ? '过不了网（任何仰角）' : `需要 ≥ ${need.toFixed(1)}°`}`);
 }
 
 evaluate('旧参数 BASE .30 / BONUS .11 / 地板 .28', 0.30, 0.11, 0.28, 0.45);
-evaluate('计划值 BASE .24 / BONUS .07（不可行）', 0.24, 0.07, 0.24, 0.45);
-evaluate('最终值 BASE .27 / BONUS .07 / 地板 .265', 0.27, 0.07, 0.265, 0.45);
-evaluate('更保守 BASE .27 / BONUS .06 / 地板 .265', 0.27, 0.06, 0.265, 0.45);
+evaluate('1.9.3 的 BASE .27 / BONUS .07 / 地板 .265', 0.27, 0.07, 0.265, 0.45);
+evaluate('【本轮定稿】BASE .265 / BONUS .045 / 地板 .26', 0.265, 0.045, 0.26, 0.45);
+evaluate('参考：再慢就过不了网 BASE .255 / BONUS .045 / 地板 .255', 0.255, 0.045, 0.255, 0.45);
 
 console.log('\n=== 满力度上限（含借力 0.10）是否超底线 ===');
 for (const [label, v] of [['满力平击', 0.34], ['满力+借力', 0.44], ['上限夹紧', 0.45]]) {
