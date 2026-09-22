@@ -196,9 +196,16 @@ public class PingPongBallEntity extends Entity {
 	 * 侧旋轴相对竖直方向的倾斜角（度）。
 	 * 【关键】纯竖直轴的自旋，在水平地面上的接触点速度 ω×r 恒为 0 —— 数学上就不可能侧拐。
 	 * 侧旋轴写成 sin(θ)·up + cos(θ)·flat 后：竖直分量 sin(θ) 负责飞行侧弯，
-	 * 行进分量 cos(θ) 负责落地侧向搓动。θ 取 60°（竖直分量更大）让飞行中的侧弯看得更清楚。
+	 * 行进分量 cos(θ) 负责落地侧向搓动。
+	 *
+	 * 【五期 M8：60° → 75°，与计划里的 45° 相反】用户三次反馈「侧旋根本体现不出来」。
+	 * 用 tools/side_spin_sweep.js 在**球台实际尺度**里量：第一跳前的横向位移
+	 * 30°/45°/60°/75°/82° 分别是 0.039/0.060/0.076/0.088/0.091 格 ——
+	 * **倾角越大、飞行侧弯越明显**（竖直分量 ∝ sin θ）。计划里写 45° 的用意是"加强落地侧拐"，
+	 * 但那恰恰砍掉了飞行侧弯，而玩家看得见的正是飞行那一段（球台只有 2.74 格，
+	 * 二跳基本已经飞出视野）。所以这里反向调整到 75°。
 	 */
-	public static final double SIDE_AXIS_TILT_DEGREES = 60.0;
+	public static final double SIDE_AXIS_TILT_DEGREES = 75.0;
 	private static final double SIDE_AXIS_TILT = Math.toRadians(SIDE_AXIS_TILT_DEGREES);
 	/** 最大自旋（rad/tick） */
 	public static final double MAX_SPIN = PingPongPhysics.MAX_SPIN;

@@ -13,6 +13,9 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+
+import java.util.List;
 
 /**
  * 乒乓球渲染：把「乒乓球物品」的模型贴在实体位置上，
@@ -33,6 +36,15 @@ public class PingPongBallRenderer extends EntityRenderer<PingPongBallEntity> {
 	@Override
 	public void render(PingPongBallEntity entity, float yaw, float tickDelta, MatrixStack matrices,
 					   VertexConsumerProvider vertexConsumers, int light) {
+		// ---- 旋转尾迹（五期 M8 现象 C）：把「球在弯」这件事画出来 ----
+		// 放在球本体之前画，残影被球盖住一部分，看起来才像球拖出来的影子。
+		Vec3d spin = entity.getSpin();
+		double spinStrength = spin.length();
+		List<Vec3d> trail = PingPongTrail.update(entity, spinStrength);
+		if (!trail.isEmpty() && PingPongTrail.isUsableFor(entity)) {
+			renderTrail(entity, trail, spinStrength, matrices, vertexConsumers, light);
+		}
+
 		matrices.push();
 
 		// 实体坐标原点在碰撞箱底部，球心要抬高半个箱高（0.14）
@@ -55,6 +67,29 @@ public class PingPongBallRenderer extends EntityRenderer<PingPongBallEntity> {
 
 		matrices.pop();
 		super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
+	}
+
+	/**
+	 * 画残影：沿最近的飞行轨迹摆一串越来越小、越来越淡的球。
+	 *
+	 * 侧旋越猛 → 轨迹越弯 → 尾迹的弯曲肉眼可见；上旋下扎同理。
+	 * 尾迹长度随自旋强度变化（转得猛的球尾巴长），球不转时 {@link PingPongTrail} 直接返回空表。
+	 */
+	private void renderTrail(PingPongBallEntity entity, List<Vec3d> trail, double spinStrength,
+							 MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+		Vec3d origin = entity.getPos();
+		int count = trail.size();
+		for (int i = 0; i < count; i++) {
+			float age = (float) (i + 1) / count;          // 0 = 最近的点，1 = 最老的
+			float scale = 0.28F * (1.0F - 0.62F * age) * (float) Math.min(1.0, 0.55 + 0.09 * spinStrength);
+			Vec3d point = trail.get(i);
+			matrices.push();
+			matrices.translate(point.x - origin.x, point.y - origin.y + 0.14, point.z - origin.z);
+			matrices.scale(scale, scale, scale);
+			this.itemRenderer.renderItem(this.ballStack, ModelTransformationMode.GROUND, light,
+					OverlayTexture.DEFAULT_UV, matrices, vertexConsumers, entity.getWorld(), entity.getId());
+			matrices.pop();
+		}
 	}
 
 	@Override
