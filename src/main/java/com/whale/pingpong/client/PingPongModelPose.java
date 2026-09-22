@@ -171,6 +171,12 @@ public final class PingPongModelPose {
 	/** 最近一次实际作用的弯矩（度）与手臂姿态角，便于判断"幅度够不够" */
 	private static float diagLastBendDegrees;
 	private static float diagLastArmPitch;
+	/**
+	 * 最近一次实际加到手臂上的横向偏转（度）。2026-09-22 加：
+	 * 反手"收向胸前"改了多轮方向都说不准，光靠推演没用 —— 把这个值打出来，
+	 * 配合 /pingpong diag 就能确认"参数到底有没有生效、生效成哪个方向"。
+	 */
+	private static float diagLastArmYaw;
 
 	/** 供 mixin 在命中注入点时调用 */
 	public static void noteMixinHit() {
@@ -187,7 +193,9 @@ public final class PingPongModelPose {
 				+ "bend 调用: 成功 " + diagBendCalls + " 次 / 失败 " + diagBendFailures + " 次\n"
 				+ "最近的弯矩: " + String.format("%.1f", diagLastBendDegrees)
 				+ "° / 大臂俯仰: " + String.format("%.1f", diagLastArmPitch)
-				+ "° / 当前姿态生效: " + held + "\n"
+				+ "° / 手臂横向偏转: " + String.format("%.1f", diagLastArmYaw)
+				+ "° （正值 = 朝持拍手外侧，负值 = 朝身体中线/胸前）"
+				+ " / 当前姿态生效: " + held + "\n"
 				+ "最近 bend 错误: " + diagLastBendError;
 	}
 
@@ -326,6 +334,7 @@ public final class PingPongModelPose {
 		paddleArm.roll += toRadians(st.curArmRoll);
 		// 诊断用：记录实际应用到持拍臂上的角度（/pingpong diag 会打出来）
 		diagLastArmPitch = st.curArmPitch;
+		diagLastArmYaw = st.curArmYaw;
 
 		otherArm.pitch += toRadians(st.curOffArmPitch * 0.5F);
 		otherArm.roll -= toRadians(st.curOffArmPitch * 0.3F);
