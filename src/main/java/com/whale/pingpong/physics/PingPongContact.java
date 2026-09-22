@@ -190,9 +190,11 @@ public final class PingPongContact {
 	 * 能过网又不出台的出球速度区间大约只有 0.30~0.45 格/tick。
 	 * 若挥拍速度按 power 线性缩放（0 → 满），轻打必然下网、满打必然出台
 	 * （扫参实测：线性映射下力度 0.2 全部下网、1.0 全部出台）。
-	 * 压成 0.6~1.0 倍后，各击球的可用力度区间覆盖 0.2~1.0。
+	 * 【五期 M7.6：0.6 → 0.45】用户要求「蓄力的基础力量还要降低」——
+	 * 原来轻点也有 60% 挥拍速度，现在压到 45%，轻点的球才真的是"轻挡"。
+	 * 下限仍高于"完全没力"：0.45 倍挥拍速度配 BASE_HIT_SPEED=0.27，实测仍能过网（见 calibrate_m76.js）。
 	 */
-	public static final double SWING_POWER_FLOOR = 0.6;
+	public static final double SWING_POWER_FLOOR = 0.45;
 	public static final double SWING_POWER_RANGE = 0.4;
 
 	/** 力度 → 挥拍速度倍率 */

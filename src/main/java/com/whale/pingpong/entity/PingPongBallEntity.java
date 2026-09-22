@@ -17,6 +17,7 @@ import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -55,6 +56,15 @@ public class PingPongBallEntity extends Entity {
 			DataTracker.registerData(PingPongBallEntity.class, TrackedDataHandlerRegistry.FLOAT);
 	private static final TrackedData<Float> SPIN_Z =
 			DataTracker.registerData(PingPongBallEntity.class, TrackedDataHandlerRegistry.FLOAT);
+	/**
+	 * 是否正在「飞回」玩家（五期 M7.6 需求 30）。
+	 *
+	 * 【为什么必须同步给客户端】飞回期间服务端每 tick 用命令式的速度推向玩家，
+	 * 而客户端默认跑自己的马格努斯+重力积分 —— 不告诉它"这球在飞回"，两边会打架：
+	 * 客户端把球往下拽、服务端又往上推，屏幕上就是一路抖回玩家身上。
+	 */
+	private static final TrackedData<Boolean> RETURNING =
+			DataTracker.registerData(PingPongBallEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
 	/**
 	 * 调试开关：设置环境变量 PINGPONG_TRACE=1 后，球每 tick 会把位置/速度打进日志，
@@ -67,7 +77,19 @@ public class PingPongBallEntity extends Entity {
 	public static final int HIT_COOLDOWN_TICKS = 3;
 	/** 最长存活时间（tick）：30 秒后自动消失 */
 	public static final int MAX_LIFE_TICKS = 600;
-	/** 静止多久后自动消失（tick） */
+	// ---- 回收（五期 M7.6 需求 30）----
+	/** 静止多少 tick 后开始「飞回」玩家（20 tick = 1 秒，让玩家看清楚球停在哪） */
+	public static final int RETURN_DELAY_TICKS = 20;
+	/** 飞回时的起始速度（格/tick） */
+	public static final double RETURN_START_SPEED = 0.06;
+	/** 飞回时每 tick 增加多少速度（越飞越快，不然慢得让人等） */
+	public static final double RETURN_ACCEL = 0.012;
+	/** 飞回的最大速度（格/tick） */
+	public static final double RETURN_MAX_SPEED = 0.32;
+	/** 距玩家眼睛多近算「接住了」（格） */
+	public static final double RETURN_ARRIVE_DISTANCE = 0.75;
+
+	/** 静止多久后自动消失（tick）。比「开始飞回」宽松得多：飞回失败（主人离线）时兜底。 */
 	public static final int MAX_REST_TICKS = 200;
 	/** 单步移动最大长度：把一 tick 的位移切碎，防止高速穿墙 */
 	private static final double MAX_STEP = 0.2;
@@ -80,14 +102,19 @@ public class PingPongBallEntity extends Entity {
 	 * 击球点约在台面上方 0.23 格、距球网 1.97 格、距远端台缘 3.34 格。
 	 * 用 tools/calibrate_hit_speed.js 反解：速度低于 0.28 时**无论怎么调仰角都爬不过网**
 	 * （低速球在 1.97 格的飞行距离内抬不起 0.15 格），所以 0.30 是留了余量的合理下限区间。
+	 *
+	 * 【五期 M7.6 §8.3：0.30 → 0.27】用户反馈「击球后球出去的距离还是太远了」。
+	 * 计划里写的是降到 0.24，但 tools/calibrate_m76.js 实测：**0.24 和 0.25 任何仰角都过不了网**
+	 * （0.26 也不行），可行下界是 0.265（需 42.5° 仰角，控制窗口极窄）。
+	 * 所以取 0.27：既是物理上真正可行的下界，又让落点从 2.47~3.02 收到 2.35~2.65。
 	 */
-	public static final double BASE_HIT_SPEED = 0.30;
-	/** 蓄力加成：满力度额外加多少（格/tick）。0.30+0.11=0.41 → 落点约 2.9 格（压线攻球） */
-	public static final double CHARGE_SPEED_BONUS = 0.11;
+	public static final double BASE_HIT_SPEED = 0.27;
+	/** 蓄力加成：满力度额外加多少（格/tick）。M7.6 由 0.11 降到 0.07 → 满力 0.34 格/tick（落点约 2.65） */
+	public static final double CHARGE_SPEED_BONUS = 0.07;
 	/** 借力系数：来球越快回球越快。0.25 会让「挡回去」的球也飞出球台，降到 0.10 */
 	public static final double HIT_SPEED_INHERIT = 0.10;
-	/** 速度下限：低于 0.28 的球在本模型里物理上过不了网（见 calibrate 脚本的可行性扫描） */
-	public static final double MIN_HIT_SPEED = 0.28;
+	/** 速度下限：M7.6 由 0.28 降到 0.265 —— 0.26 已过不了网，这是物理下界的极限值 */
+	public static final double MIN_HIT_SPEED = 0.265;
 	/** 速度上限：0.45 格/tick 落点约 3.4 格，已经是「人手能打出的极限」 */
 	public static final double MAX_HIT_SPEED = 0.45;
 	/**
@@ -205,6 +232,8 @@ public class PingPongBallEntity extends Entity {
 	private int noSelfCollisionTicks;
 	private boolean spinDirty = true;
 	private UUID ownerUuid;
+	/** 飞回进度（tick）：仅服务端有意义，见 {@link #tickReturning(PersistenceType)} */
+	private int returnTicks;
 
 	public PingPongBallEntity(EntityType<? extends PingPongBallEntity> entityType, World world) {
 		super(entityType, world);
@@ -322,6 +351,7 @@ public class PingPongBallEntity extends Entity {
 		this.dataTracker.startTracking(SPIN_X, 0.0F);
 		this.dataTracker.startTracking(SPIN_Y, 0.0F);
 		this.dataTracker.startTracking(SPIN_Z, 0.0F);
+		this.dataTracker.startTracking(RETURNING, false);
 	}
 
 	/** 读取自旋：客户端读同步值，服务端读权威值。 */
@@ -359,6 +389,73 @@ public class PingPongBallEntity extends Entity {
 		this.dataTracker.set(SPIN_Y, (float) this.spinY);
 		this.dataTracker.set(SPIN_Z, (float) this.spinZ);
 		this.spinDirty = false;
+	}
+
+	/** 是否正在飞回玩家（服务端与客户端都读得到，见 RETURNING 的注释）。 */
+	public boolean isReturning() {
+		return this.dataTracker.get(RETURNING);
+	}
+
+	/** 开始飞回：清掉残余速度与自旋，让球"被吸走"而不是继续滚。 */
+	private void startReturn() {
+		this.returnTicks = 0;
+		this.setPhysicsVelocity(Vec3d.ZERO);
+		this.setVelocity(Vec3d.ZERO);
+		this.setSpin(Vec3d.ZERO);
+		this.dataTracker.set(RETURNING, true);
+		this.getWorld().playSound(null, this.getX(), this.getY(), this.getZ(),
+				net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, net.minecraft.sound.SoundCategory.PLAYERS,
+				0.25F, 1.8F);
+	}
+
+	/**
+	 * 飞回：朝**主人（最后抛球或击球的人）**的眼睛直线加速飞行，到了就回到他的物品栏。
+	 *
+	 * 需求原话：「等球完全不动了之后要自动回到玩家身上」。所以这里是"回到身上"而不是"原地消失"，
+	 * 并配了上行音效（ENTITY_ITEM_PICKUP 音调拉高），让玩家知道球是回来了、不是没了。
+	 */
+	private void tickReturning() {
+		this.returnTicks++;
+		ServerPlayerEntity owner = this.resolveOwner();
+		if (owner == null) {
+			// 主人离线/换维度：停留超过 MAX_REST_TICKS 由 tickServer 的兜底分支直接丢弃
+			return;
+		}
+
+		Vec3d target = owner.getEyePos();
+		Vec3d toTarget = target.subtract(this.getPos());
+		if (toTarget.length() < RETURN_ARRIVE_DISTANCE) {
+			this.finishReturn(owner);
+			return;
+		}
+
+		double speed = Math.min(RETURN_MAX_SPEED, RETURN_START_SPEED + RETURN_ACCEL * this.returnTicks);
+		Vec3d velocity = toTarget.normalize().multiply(speed);
+		this.physicsVelocity = velocity;
+		this.setVelocity(velocity);
+		this.move(MovementType.SELF, velocity);
+		this.updateRotationFromVelocity();
+	}
+
+	/** 飞到玩家身上了：把球还回物品栏（或掉在脚下），然后消失。 */
+	private void finishReturn(ServerPlayerEntity owner) {
+		ItemStack stack = new ItemStack(com.whale.pingpong.item.ModItems.PINGPONG_BALL);
+		if (!owner.giveItemStack(stack)) {
+			// 背包满：掉在玩家脚下，而不是凭空蒸发
+			owner.dropItem(stack, false);
+		}
+		this.getWorld().playSound(null, owner.getX(), owner.getY(), owner.getZ(),
+				net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, net.minecraft.sound.SoundCategory.PLAYERS,
+				0.35F, 2.0F);
+		this.discard();
+	}
+
+	/** 主人 = 最后抛球或击球的那个玩家；离线/找不到就返回 null。 */
+	private ServerPlayerEntity resolveOwner() {
+		if (this.ownerUuid == null || !(this.getWorld() instanceof ServerWorld)) {
+			return null;
+		}
+		return ((ServerWorld) this.getWorld()).getServer().getPlayerManager().getPlayer(this.ownerUuid);
 	}
 
 	@Override
@@ -419,6 +516,13 @@ public class PingPongBallEntity extends Entity {
 		}
 		this.lifeTicks++;
 
+		// --- 0. 飞回阶段（五期 M7.6 需求 30）---
+		// 独立分支：飞回期间不跑重力/马格努斯/碰撞，否则球会被物理拖住、回不到玩家身上。
+		if (this.isReturning()) {
+			this.tickReturning();
+			return;
+		}
+
 		// --- 1. 自旋衰减 ---
 		Vec3d spin = PingPongPhysics.decaySpin(this.getSpin());
 		this.spinX = spin.x;
@@ -478,6 +582,17 @@ public class PingPongBallEntity extends Entity {
 					+ " rest=" + this.restTicks);
 		}
 
+		// 【五期 M7.6 需求 30：静止后飞回玩家】
+		// 原来的行为是「静止超过 MAX_REST_TICKS 就 discard（凭空消失）」，用户明确要求
+		// 「等球完全不动了之后要自动回到玩家身上」。现在的顺序是：
+		//   静止 RETURN_DELAY_TICKS（1 秒，让玩家看清楚球停在哪）→ 开始飞回 → 到达玩家物品栏。
+		// 球直接在主人手里/身上时不算「静止回收」的场合 —— 那种情况球早就被接住了。
+		// MAX_REST_TICKS 退居兜底：主人离线、或球卡在飞回不了的地方时才丢掉。
+		if (this.restTicks == RETURN_DELAY_TICKS) {
+			this.startReturn();
+			return;
+		}
+
 		if (this.lifeTicks > MAX_LIFE_TICKS
 				|| this.restTicks > MAX_REST_TICKS
 				|| this.getY() < this.getWorld().getBottomY() - 16) {
@@ -495,6 +610,12 @@ public class PingPongBallEntity extends Entity {
 	 * 中间由客户端把弧线"补"出来，视觉上才是连续的香蕉球 / 下扎。
 	 */
 	private void tickClient() {
+		// 飞回期间不做客户端物理预测：服务端每 tick 直接命令位置，客户端再叠一份重力与马格努斯
+		// 只会让球一路抖着飞回来。位置跟随由实体追踪包负责。
+		if (this.isReturning()) {
+			return;
+		}
+
 		Vec3d spin = this.getSpin();
 
 		// 自旋够快时撒点粒子，让「转」看得见

@@ -55,8 +55,16 @@ public final class ModNetworking {
 	public static final byte ACTION_CHARGE = 2;
 	public static final byte ACTION_BALL_CAM = 3;
 
-	/** 球拍够得着的距离（格），从「击球点」算起 */
-	private static final double HIT_REACH = 2.6;
+	/**
+	 * 球拍够得着的距离（格），从「击球点」算起。
+	 *
+	 * 【五期 M7.6 §8.2：2.6 → 1.15】用户原话「击球范围不要那么大，现实中一个乒乓球拍的大小是多少，
+	 * 你按照差不多的比例来设置击球范围的大小」。实查：拍面直径约 15cm、总长约 25cm，
+	 * 换算成格只有 0.15 / 0.25 —— 比我们的球（直径 0.28 格）还小。
+	 * 纯真实的 0.3~0.5 格在 MC 里太苛刻（移动是分步的，容差小会一直"明明碰到却没打到"），
+	 * 所以取 1.15：仍比真实大 2~3 倍，但比原来的 2.6 收紧了一半以上。
+	 */
+	private static final double HIT_REACH = 1.15;
 	/** 同一个玩家两次挥拍之间的最小间隔（tick），防连点刷包 */
 	private static final int SWING_COOLDOWN_TICKS = 2;
 
@@ -355,13 +363,27 @@ public final class ModNetworking {
 		Box searchBox = Box.from(paddlePos).expand(HIT_REACH);
 		PingPongBallEntity target = null;
 		double bestDistance = HIT_REACH * HIT_REACH;
+		// 【五期 M7.6 §8.2：判定形状改成"朝前的扁盒"】
+		// 球拍是一块板，不是一颗球 —— 用球体搜索会在**拍子背面**也判定命中（球从身后飞过也算打到）。
+		// 以「眼睛 → 拍面中心」为朝前法线，只接受法线前方（含一点侧向容差）的球。
+		Vec3d faceNormal = paddlePos.subtract(eyePos);
+		if (faceNormal.lengthSquared() > 1.0e-6) {
+			faceNormal = faceNormal.normalize();
+		} else {
+			faceNormal = look;
+		}
 		for (PingPongBallEntity ball : player.getWorld()
 				.getEntitiesByClass(PingPongBallEntity.class, searchBox, ball -> true)) {
 			double distance = ball.getPos().squaredDistanceTo(paddlePos);
-			if (distance < bestDistance && hasLineOfSight(player, ball)) {
-				bestDistance = distance;
-				target = ball;
+			if (distance >= bestDistance || !hasLineOfSight(player, ball)) {
+				continue;
 			}
+			double alongFace = ball.getPos().subtract(paddlePos).dotProduct(faceNormal);
+			if (alongFace < -HIT_REACH * 0.35) {
+				continue;
+			}
+			bestDistance = distance;
+			target = ball;
 		}
 
 		// 动作**无条件播放**（需求 20a：碰不到球也要做动作），只有球是否响应不同。

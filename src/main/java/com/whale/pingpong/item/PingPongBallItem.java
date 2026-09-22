@@ -86,10 +86,14 @@ public class PingPongBallItem extends Item {
 					0.45F + 0.25F * (float) chargeRatio(usedTicks),
 					1.35F - 0.35F * (float) chargeRatio(usedTicks));
 
-			// 【需求 24：使用不消耗】这里刻意**不做** stack.decrement(1)：
-			// 用户要求「乒乓球物品使用不消耗」，一颗球可以无限次抛。
-			// 与「一世界一球」不冲突 —— 旧球要么被潜行右键回收，要么 600 tick 后自动消失。
-			// 但 4 tick 冷却必须留着：否则狂点右键会每 tick 生成一颗球，瞬间刷满一屏。
+			// 【五期 M7.6：需求 24「使用不消耗」被用户撤销】
+			// 原话：「副手发球后球要消失，乒乓球不要不消耗了，但是等球完全不动了之后要自动回到玩家身上」。
+			// 所以恢复消耗 —— 一颗球用一次，但那颗球**会自己飞回物品栏**
+			// （见 PingPongBallEntity 的飞回逻辑：静止 1 秒后出发，到达即还回球）。
+			// 4 tick 冷却保留：否则狂点右键仍然会每 tick 生成一颗球。
+			if (!player.getAbilities().creativeMode) {
+				stack.decrement(1);
+			}
 			player.getItemCooldownManager().set(this, 4);
 		}
 	}
