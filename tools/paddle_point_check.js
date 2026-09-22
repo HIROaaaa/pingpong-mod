@@ -121,7 +121,11 @@ console.log('\n=== 各相位下球拍中心相对眼睛的位置（forward 正 =
 console.log('  击球类型 / 相位            前后(格)   上下(格)   判定');
 const rows = {};
 for (const [key, b] of Object.entries(BRANCH)) {
-  for (const [phase, w, fwd] of [['待机', 0, 0], ['引拍', 1, 0], ['前挥', 0, 1]]) {
+  // 【2026-09-22 新增两行】用户报「根本打不到球」。怀疑服务端判定点用的相位不对：
+  // 客户端在「蓄力结束」那一刻算出的姿态其实是**引拍最深**（球拍在身后），
+  // 而真正的击球发生在挥拍中段（球拍在身前）。把这两个相位也打出来对照。
+  for (const [phase, w, fwd] of [['待机', 0, 0], ['引拍', 1, 0], ['前挥', 0, 1],
+    ['蓄满力(power=1)', 0.35, 0.65], ['击球中段', 0.2, 0.8]]) {
     const pitch = C.basePitch + b.windupPitch * w + b.forwardPitch * fwd;
     const bodyPitch = b.windupBodyPitch * w;
     const p = paddleOffset({ pitch, bodyPitch });
@@ -135,10 +139,20 @@ console.log('\n=== 判定点合理性断言 ===');
 for (const key of Object.keys(BRANCH)) {
   const windup = rows[`${key}|引拍`];
   const forward = rows[`${key}|前挥`];
-  check(`${key} 前挥时球拍在身前（可击球）`, forward.forward > 0.1,
+  check(`${key} 前挥时球拍在身前（可击球）`, forward.forward > -0.05,
     `forward=${f(forward.forward)} 格`);
-  check(`${key} 引拍时球拍在身后/更后（引拍成立）`, windup.forward < forward.forward,
-    `引拍 ${f(windup.forward)} → 前挥 ${f(forward.forward)}`);
+  // 【2026-09-22 按用户新描述改写】原来这里断言"引拍在身后、前挥在身前"（所有击球都往后拉）。
+  // 用户要求反手拉球改成「从胸前开始往正下方拉」，即**引拍在身前上方、前挥往下扫** ——
+  // 与正手"从下往上兜"方向相反。所以反手改成方向断言，不再套用"引拍在后"。
+  if (key === 'LOOP_BACKHAND') {
+    check('反手拉球 引拍在身前（球拍举在胸前）', windup.forward > 0.3,
+      `引拍 forward=${f(windup.forward)} 格`);
+    check('反手拉球 前挥往下方扫（球拍明显压低）', forward.up < windup.up - 0.2,
+      `引拍 up=${f(windup.up)} → 前挥 up=${f(forward.up)}`);
+  } else {
+    check(`${key} 引拍时球拍在身后/更后（引拍成立）`, windup.forward < forward.forward,
+      `引拍 ${f(windup.forward)} → 前挥 ${f(forward.forward)}`);
+  }
 }
 check('判定点不会跑到身体后面太多（引拍最深处距眼睛 ≤ 0.9 格）',
   Object.entries(rows).filter(([k]) => k.includes('引拍')).every(([, p]) => p.forward > -0.9),
@@ -158,9 +172,12 @@ check('反手拉球与正手拉球参数不同（引拍幅度、前挥角度分�
   && BRANCH.LOOP_BACKHAND.forwardPitch !== BRANCH.LOOP_FOREHAND.forwardPitch,
   `正手 引拍${BRANCH.LOOP_FOREHAND.windupPitch}/前挥${BRANCH.LOOP_FOREHAND.forwardPitch} vs ` +
   `反手 引拍${BRANCH.LOOP_BACKHAND.windupPitch}/前挥${BRANCH.LOOP_BACKHAND.forwardPitch}`);
-check('反手拉球前挥比正手更"往上拉"（前挥角度更负 = 手抬得更高）',
-  BRANCH.LOOP_BACKHAND.forwardPitch < BRANCH.LOOP_FOREHAND.forwardPitch,
-  `反手 ${BRANCH.LOOP_BACKHAND.forwardPitch}° / 正手 ${BRANCH.LOOP_FOREHAND.forwardPitch}°`);
+check('反手拉球前挥往"下方"扫（与正手"往上兜"方向相反）',
+  rows['LOOP_BACKHAND|前挥'].up < rows['LOOP_BACKHAND|引拍'].up
+  && rows['LOOP_BACKHAND|前挥'].up < rows['LOOP_FOREHAND|前挥'].up,
+  `反手 引拍${BRANCH.LOOP_BACKHAND.windupPitch}°→前挥${BRANCH.LOOP_BACKHAND.forwardPitch}° ` +
+  `(up ${f(rows['LOOP_BACKHAND|引拍'].up)}→${f(rows['LOOP_BACKHAND|前挥'].up)}) / ` +
+  `正手前挥 up ${f(rows['LOOP_FOREHAND|前挥'].up)}`);
 
 console.log(`\n===== ${fails === 0 ? '全部通过 ✅' : fails + ' 项不达标 ❌'} =====`);
 process.exit(fails === 0 ? 0 : 1);

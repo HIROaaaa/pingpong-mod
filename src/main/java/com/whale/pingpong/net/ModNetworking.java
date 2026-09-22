@@ -58,13 +58,17 @@ public final class ModNetworking {
 	/**
 	 * 球拍够得着的距离（格），从「击球点」算起。
 	 *
-	 * 【五期 M7.6 §8.2：2.6 → 1.15】用户原话「击球范围不要那么大，现实中一个乒乓球拍的大小是多少，
+	 * 【五期 M7.6 §8.2：2.6 → 1.15；2026-09-22 回调到 1.45】
+	 * 用户原话「击球范围不要那么大，现实中一个乒乓球拍的大小是多少，
 	 * 你按照差不多的比例来设置击球范围的大小」。实查：拍面直径约 15cm、总长约 25cm，
 	 * 换算成格只有 0.15 / 0.25 —— 比我们的球（直径 0.28 格）还小。
-	 * 纯真实的 0.3~0.5 格在 MC 里太苛刻（移动是分步的，容差小会一直"明明碰到却没打到"），
-	 * 所以取 1.15：仍比真实大 2~3 倍，但比原来的 2.6 收紧了一半以上。
+	 * 纯真实的 0.3~0.5 格在 MC 里太苛刻（移动是分步的，容差小会一直"明明碰到却没打到"）。
+	 *
+	 * 1.15 上线后用户实测反馈「感觉击球点有点问题或者是太小了，根本打不到球」，
+	 * 回调到 1.45：仍远小于原来的 2.6，但比真实尺寸留出了足够的手感余量。
+	 * 同时把判定相位对齐到挥拍中段（见下面 anglesFor 的注释），两处一起修「打不到」。
 	 */
-	private static final double HIT_REACH = 1.15;
+	private static final double HIT_REACH = 1.45;
 	/** 同一个玩家两次挥拍之间的最小间隔（tick），防连点刷包 */
 	private static final int SWING_COOLDOWN_TICKS = 2;
 
@@ -351,12 +355,19 @@ public final class ModNetworking {
 		// 现在判定点由 util/ArmPose 按「击球类型 + 力度 + 手型」算出手臂姿态后再取球拍中心，
 		// 与客户端摆动画用的是**同一个函数**，两边天然对齐。
 		//
-		// 引拍进度取蓄力力度：力度越大，这一拍挥得越出去，拍子也确实落在更靠前的位置。
+		// 判定相位取「**击球中段**」而不是"蓄力结束那一刻"。
+		//
+		// 【2026-09-22 用户报「感觉击球点有点问题或者是太小了，根本打不到球」】
+		// 原来传的是 (windup = power*0.35, forward = 0.65 + 0.35*power)：那套参数描述的是
+		// **蓄力刚结束、还没挥出去**的姿态。用 tools/paddle_point_check.js 对照：
+		// 蓄满力时球拍在身前 +0.25 格（正手）/ +0.42（反手），而真正挥出去时在 +0.70/+0.73 ——
+		// 判定点比"玩家看到的拍子"落后约 0.3 格，1.15 格容差下就是"明明碰到却没打到"。
+		// 现在固定用 (0.2, 0.8)：对应球拍已经挥到身前的击球时刻，与客户端动画的中段对齐。
 		Vec3d eyePos = player.getEyePos();
 		Vec3d look = player.getRotationVec(1.0F);
 		Vec3d outward = TableGeometry.outward(player.getWorld(), player.getPos());
 		ArmPose.Angles paddlePose = ArmPose.anglesFor(stroke, hand == PlayerHand.FOREHAND,
-				power * 0.35, 0.65 + 0.35 * power, 0.0);
+				0.2, 0.8, 0.0);
 		Vec3d paddlePos = ArmPose.paddleWorld(eyePos, look, outward, paddlePose,
 				hand == PlayerHand.FOREHAND);
 
@@ -379,7 +390,9 @@ public final class ModNetworking {
 				continue;
 			}
 			double alongFace = ball.getPos().subtract(paddlePos).dotProduct(faceNormal);
-			if (alongFace < -HIT_REACH * 0.35) {
+			// 背后容差从 0.35 放宽到 0.5：击球是连续动作，判定点只是一个瞬时采样，
+			// 球擦着拍边/拍背一点点飞过时应该算命中（用户报「根本打不到球」后一起放宽的）。
+			if (alongFace < -HIT_REACH * 0.5) {
 				continue;
 			}
 			bestDistance = distance;
