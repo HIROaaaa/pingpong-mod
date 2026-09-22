@@ -241,8 +241,20 @@ public final class PingPongClientState {
 				// savePose 幂等，重复写没有副作用。
 				savePose(client.player.getInventory().selectedSlot);
 			}
-			// 蓄力：左键按住时每 tick 累加，到满值封顶
-			if (client.options.attackKey.isPressed()) {
+			// 蓄力：左键（拍击/弧圈）或右键（搓/削）按住时每 tick 累加，到满值封顶。
+			//
+			// 【2026-09-22 修 bug：右键蓄力「没做」的真因】原来这里**只判断了左键**：
+			//     if (client.options.attackKey.isPressed()) { chargeTicks++; }
+			// 于是按住右键搓/削时 chargeTicks 一直是 0，PingPongClient.handleSwing 松手时
+			// 拿到的 power 恒定 ≈0，击球永远是"最轻的一档"，服务端与客户端动画也都收到 0 ——
+			// 玩家感受就是"右键蓄力功能没做"（其实右键的击球状态机、发包、服务端处理都在）。
+			//
+			// 右键的条件与 handleSwing 里的判定保持一致：副手没举球（举球时右键归抛球）、
+			// 且没有潜行（潜行右键是回收球）。
+			boolean holdingBallOffhand = client.player.getOffHandStack().isOf(ModItems.PINGPONG_BALL);
+			boolean rightCharging = client.options.useKey.isPressed()
+					&& !holdingBallOffhand && !client.player.isSneaking();
+			if (client.options.attackKey.isPressed() || rightCharging) {
 				chargeTicks = Math.min(chargeTicks + 1, CHARGE_FULL_TICKS);
 			}
 		} else {

@@ -8,6 +8,49 @@
 
 ---
 
+## [1.9.9] - 2026-09-22
+
+修「右键蓄力功能没做」（需求 29 的遗留项）。
+
+### 真因：蓄力计时只认左键
+
+`PingPongClientState.tick()` 里那一行：
+
+```java
+if (client.options.attackKey.isPressed()) { chargeTicks++; }   // ← 只有左键
+```
+
+于是**按住右键搓/削时 `chargeTicks` 恒为 0**，松手时 `endCharge()` 交出来的 power ≈ 0，
+击球永远是"最轻的一档"，服务端与动画收到的也是 0 —— 玩家感受就是"右键蓄力没做"。
+
+事实上右键那条链路（`handleSwing` 的按下/松手状态机、`sendSwing(power, true)`、
+服务端按 57% 阈值分发搓球/削球）**全都在**，只差这一处蓄力累加没算右键。
+
+### 修法
+
+蓄力改为左右键双通道，右键条件与 `handleSwing` 保持一致（副手没举球、未潜行）：
+
+```java
+boolean rightCharging = client.options.useKey.isPressed() && !holdingBallOffhand && !client.player.isSneaking();
+if (client.options.attackKey.isPressed() || rightCharging) { chargeTicks = Math.min(chargeTicks + 1, CHARGE_FULL_TICKS); }
+```
+
+这样「按住右键蓄力 → 松手打出搓球/削球（≥57% 为削球）」才真正成立。
+
+---
+
+## [1.9.8] - 2026-09-22
+
+反手手臂横向偏转：符号取反 + 加诊断。
+
+- 用户实测「还是反的」→ `windupArmYaw/forwardArmYaw` 由 `−45/+25` 改为 `+45/−25`
+  （反手 handed = −1，实际生效 −45/+25）。
+- **新增诊断**：`/pingpong diag` 现在会打出手臂横向偏转度数，并标注方向含义
+  ——「正值 = 朝持拍手外侧，负值 = 朝身体中线/胸前」。目的是让"参数到底有没有生效"
+  变成可读的数字：偏转 0 就说明没进渲染链路，不必再靠翻符号猜。
+
+---
+
 ## [1.9.7] - 2026-09-22
 
 用户实测：「手臂偏移的方向反了，现在是往外偏，应该里偏」。
