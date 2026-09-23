@@ -120,17 +120,25 @@ public final class PingPongAnimations {
 	 * 【为什么需要它】用户 2026-09-23 反馈：「拉球蓄力的时候第一时间没有动作，但是松开蓄力
 	 * 开始打球的时候球拍才呈现出往下拉的动作」。真因：`PingPongClientState.startSwing()`
 	 * 只在**松手**时调用，蓄力期间 `swingProgress()` 恒为 0 —— 于是
-	 * {@link #apply} 里 `swing <= 0` 直接 return，蓄力时**一点姿势反馈都没有**，
-	 * 全部动作都堆在松手后的 8 tick 里，看起来就是"松手才动、而且只动了一下"。
+	 * {@link #apply} 里 `swing <= 0` 直接 return，蓄力时**一点姿势反馈都没有**。
 	 *
-	 * 现在把蓄力进度映射成「引拍进度」：按住越久，球拍拉得越开（上限 0.9，留一点余量给击球瞬间）。
-	 * 抬手（击球）才交给 {@code startSwing()} 的三段式播放。
+	 * 【第二次修正：上限必须落在"引拍段"之内】第一版把上限写成 0.9，但 {@link #apply} 的
+	 * 三段式分界是 **0.35 起进入前挥**：蓄力超过 35% 之后进度就跨进了前挥段 ——
+	 * 于是**削球蓄力时会做出"往下砸"的动作**（用户反馈「削球还是蓄力会往下拉」），
+	 * 拉球蓄力后半段也提前进入前挥。现在把上限压到 **0.32**（略低于 0.35），
+	 * 保证蓄力期间**全程都只在引拍段**内推进，绝不出现在"蓄力却已经在挥"的错乱。
 	 *
 	 * @param chargeRatio 蓄力比例 0~1
 	 */
 	public static float chargeWindupProgress(double chargeRatio) {
-		return (float) MathHelper.clamp(chargeRatio * 0.9, 0.0, 0.9);
+		return (float) MathHelper.clamp(chargeRatio * CHARGE_WINDUP_MAX, 0.0, CHARGE_WINDUP_MAX);
 	}
+
+	/**
+	 * 蓄力期间引拍进度的上限。必须**小于** {@link #apply} 里"引拍→前挥"的分界 0.35，
+	 * 否则蓄力越久越会提前播到前挥（表现为"蓄力时球拍就往下砸/往前挥了"）。
+	 */
+	private static final float CHARGE_WINDUP_MAX = 0.32F;
 
 	/** 旧的通用三段式挥拍（兜底，保持向后兼容）。 */
 	private static void applyGeneric(MatrixStack m, float windup, float forward, float follow, int sign) {
@@ -165,29 +173,27 @@ public final class PingPongAnimations {
 	}
 
 	/**
-	 * 搓球（PUSH）：用户 2026-09-23 给了明确的方向要求 ——
-	 * 「正手搓球的动作应该是手向斜前方（右手拿拍就是右前）伸过去再搓，反手搓球应该是在身前搓」。
+	 * 搓球（PUSH）：用户 2026-09-23 两次给了方向要求 ——
+	 * 「正手搓球的动作应该是手向斜前方（右手拿拍就是右前）伸过去再搓，反手搓球应该是在身前搓」
+	 * 以及第二次纠正「反手搓球胳膊根本没往胸前伸」。
 	 *
-	 * 所以正反手在这里是**不对称**的：
-	 *   · 正手（sign=+1）：往**右前方**送 —— 明显的前伸 + 横向偏移，拍在身体斜前方；
-	 *   · 反手（sign=−1）：只在**身前**搓 —— 前伸为主、横向几乎不偏，拍贴着身体中线。
-	 * 两者都不"往下引拍"（用户明确指出「右键蓄力的时候不应该往下引拍」），
-	 * 引拍只是轻微后收，把动作让给"伸手去搓"。
+	 * 所以正反手在**横向上差得很远**（这是上一版没做到位的地方：反手横移只给了 0.02 格，几乎看不出来）：
+	 *   · 正手（sign=+1）：往**右前方**送 —— Y 轴 26°、横移 0.10 格，拍在身体斜前方；
+	 *   · 反手（sign=−1）：胳膊**明显往胸前收** —— Y 轴 34°、横移 **0.14 格**（上一版仅 0.02），
+	 *     再往前下方递出去搓。用户原话是"往胸前伸"，所以这里的横向位移必须看得见。
+	 * 两者引拍都只是轻微后收（−10°），不做"往下引拍"。
 	 */
 	private static void applyPush(MatrixStack m, float windup, float forward, float follow, int sign) {
 		boolean forehand = sign > 0;
-		// 引拍：轻微后收 +（正手额外往斜前方让一点空间）
+		// 引拍：轻微后收；（反手仍保持往胸前收的趋势，别把手甩到外面去）
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-10.0F * windup));
-		if (forehand) {
-			m.translate(0.04F * windup, 0.02F * windup, -0.02F * windup);
-		} else {
-			m.translate(0.0F, 0.02F * windup, -0.01F * windup);
-		}
-		// 前挥：伸手去搓。正手横着往斜前方送，反手只往前送
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((forehand ? 4.0F : 12.0F) * windup * sign));
+		m.translate(forehand ? 0.04F * windup : 0.05F * windup, 0.02F * windup, -0.02F * windup);
+		// 前挥：正手往斜前方送；反手往胸前收着向前下方递
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(6.0F * forward));
-		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((forehand ? 26.0F : 6.0F) * forward * sign));
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((forehand ? 26.0F : 34.0F) * forward * sign));
 		m.translate(
-				forehand ? 0.10F * (forward + follow) : 0.02F * (forward + follow),
+				(forehand ? 0.10F : 0.14F) * (forward + follow),
 				-0.05F * (forward + follow),
 				-0.12F * (forward + follow));
 	}
