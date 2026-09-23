@@ -18,7 +18,7 @@
 	"hud.pingpong.left": "左偏",
 	"hud.pingpong.right": "右偏",
 	"hud.pingpong.status": "球拍：%s | %s %s   侧偏：%s %s",
-	"hud.pingpong.hint": "滚轮调俯仰 | Alt+滚轮调侧偏 | C 换手 | V 跟球 %s",
+	"hud.pingpong.hint": "滚轮调俯仰 | Alt+滚轮调侧偏 | Ctrl+滚轮调旋转 | C 换手 | V 跟球 %s",
 	"hud.pingpong.hand.switched": "已切换为 %s 击球",
 	"hud.pingpong.ballcam.on": "跟球视角：开启",
 	"hud.pingpong.ballcam.off": "跟球视角：关闭",
@@ -30,5 +30,6 @@
 	"stroke.pingpong.chop": "削球",
 	"hud.pingpong.scroll.tilt": "拍面俯仰 %+d%%　（正=前倾=上旋，负=后仰=下旋）",
 	"hud.pingpong.scroll.side": "拍面侧偏 %+d%%　（正=右偏，负=左偏）",
+	"hud.pingpong.scroll.spin": "拍面水平旋转 %+d%%　（拍面在水平面里转，像拧手腕改朝向）",
 	"message.pingpong.cleared": "已回收 %s 颗乒乓球"
 }

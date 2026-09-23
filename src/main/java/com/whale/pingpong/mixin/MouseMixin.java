@@ -45,11 +45,19 @@ public class MouseMixin {
 
 		boolean alt = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_ALT)
 				|| InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_RIGHT_ALT);
-		PingPongClientState.onScroll(vertical, alt);
+		boolean ctrl = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL)
+				|| InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_RIGHT_CONTROL);
+		// 三个维度：普通滚轮=俯仰、Alt=侧偏、Ctrl=水平旋转（第三个方向，2026-09-23 补）
+		int axis = ctrl ? PingPongClientState.AXIS_SPIN
+				: alt ? PingPongClientState.AXIS_SIDE
+				: PingPongClientState.AXIS_TILT;
+		PingPongClientState.onScroll(vertical, axis);
 
-		int percent = (int) Math.round((alt ? PingPongClientState.sideTilt() : PingPongClientState.tilt()) * 100.0);
-		client.inGameHud.setOverlayMessage(
-				Text.translatable(alt ? "hud.pingpong.scroll.side" : "hud.pingpong.scroll.tilt", percent), false);
+		int percent = (int) Math.round(PingPongClientState.axisValue(axis) * 100.0);
+		String key = axis == PingPongClientState.AXIS_SPIN ? "hud.pingpong.scroll.spin"
+				: axis == PingPongClientState.AXIS_SIDE ? "hud.pingpong.scroll.side"
+				: "hud.pingpong.scroll.tilt";
+		client.inGameHud.setOverlayMessage(Text.translatable(key, percent), false);
 
 		// 吃掉这次滚动，避免同时切换快捷栏
 		ci.cancel();

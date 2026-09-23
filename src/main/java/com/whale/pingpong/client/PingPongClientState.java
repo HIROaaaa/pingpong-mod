@@ -43,6 +43,17 @@ public final class PingPongClientState {
 	private static double tilt;
 	/** 拍面侧偏：+1 / -1 = 左右极限（侧旋） */
 	private static double sideTilt;
+	/**
+	 * 拍面**水平旋转**（第三个方向，2026-09-23 用户提出）。
+	 *
+	 * 三个方向的语义（对应模型的三条轴）：
+	 *   · {@link #tilt}      —— 俯仰（绕 X）：拍面后仰/前倾 → 上旋/下旋
+	 *   · {@link #sideTilt}  —— 侧偏（绕 Z）：拍面左右倾 → 侧旋
+	 *   · 本字段 spin        —— **旋转（绕 Y）**：拍面在水平面里转，像拧手腕改拍面朝向
+	 * 用户原话：「球拍仰俯旋转的方向错了，应该是现在旋转的方向和侧偏旋转的方向之外的那个方向，
+	 * 旋转等也要跟着更改」——即前两个之外缺的那一维就是它。
+	 */
+	private static double spin;
 
 	private static PlayerHand hand = PlayerHand.FOREHAND;
 	private static int swingTicks;
@@ -83,6 +94,16 @@ public final class PingPongClientState {
 	public static double sideTilt() {
 		return sideTilt;
 	}
+
+	/** 拍面水平旋转（绕竖直轴）——第三个方向。 */
+	public static double spin() {
+		return spin;
+	}
+
+	/** 滚轮的作用维度（普通 / Alt / Ctrl）。 */
+	public static final int AXIS_TILT = 0;
+	public static final int AXIS_SIDE = 1;
+	public static final int AXIS_SPIN = 2;
 
 	public static PlayerHand hand() {
 		return hand;
@@ -126,15 +147,32 @@ public final class PingPongClientState {
 	// 修改状态
 	// ==================================================================
 
-	/** 鼠标滚轮回调：alt 为 true 时调侧偏，否则调俯仰。 */
-	public static void onScroll(double vertical, boolean alt) {
+	/**
+	 * 鼠标滚轮回调。三个维度各占一个修饰键：
+	 * 普通滚轮 = 俯仰（{@link #AXIS_TILT}）、Alt+滚轮 = 侧偏（{@link #AXIS_SIDE}）、
+	 * **Ctrl+滚轮 = 水平旋转（{@link #AXIS_SPIN}）**。
+	 */
+	public static void onScroll(double vertical, int axis) {
 		double delta = Math.signum(vertical) * SCROLL_STEP;
-		if (alt) {
+		if (axis == AXIS_SIDE) {
 			sideTilt = MathHelper.clamp(sideTilt + delta, -1.0, 1.0);
+		} else if (axis == AXIS_SPIN) {
+			spin = MathHelper.clamp(spin + delta, -1.0, 1.0);
 		} else {
 			tilt = MathHelper.clamp(tilt + delta, -1.0, 1.0);
 		}
 		poseDirty = true;
+	}
+
+	/** 某个维度的当前值（-1~1），供 HUD 提示使用。 */
+	public static double axisValue(int axis) {
+		if (axis == AXIS_SIDE) {
+			return sideTilt;
+		}
+		if (axis == AXIS_SPIN) {
+			return spin;
+		}
+		return tilt;
 	}
 
 	/** 开始一次挥拍（用于 HUD 与自定义动画）。 */

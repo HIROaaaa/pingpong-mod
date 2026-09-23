@@ -26,6 +26,8 @@ public final class PingPongAnimations {
 	private static final float TILT_VISUAL_DEGREES = 62.0F;
 	/** 拍面侧偏的视觉最大角度（度） */
 	private static final float SIDE_VISUAL_DEGREES = 52.0F;
+	/** 水平旋转（绕 Y 轴，第三个方向）每 1.0 对应多少度。 */
+	private static final float SPIN_VISUAL_DEGREES = 70.0F;
 	/** 台内搓球时的躯干前倾角（度）：需求 19「身体需要往台内的方向前倾」 */
 	private static final float IN_TABLE_LEAN_DEGREES = 15.0F;
 	/** 台内时手臂额外向台内送出的距离（格） */
@@ -66,6 +68,11 @@ public final class PingPongAnimations {
 		// --- 拍面角度：常态就能看出朝向（需求 0） ---
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees((float) tilt * TILT_VISUAL_DEGREES));
 		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees((float) sideTilt * SIDE_VISUAL_DEGREES));
+		// 【2026-09-23 第三个方向：水平旋转（绕 Y）】用户：「球拍仰俯旋转的方向错了，应该是现在
+		// 旋转的方向和侧偏旋转的方向之外的那个方向」。俯仰绕 X、侧偏绕 Z，缺的正是绕 Y 的水平旋转 ——
+		// 拍面在水平面里左右转，像拧手腕调拍面朝向。Ctrl+滚轮控制。
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(
+				(float) PingPongClientState.spin() * SPIN_VISUAL_DEGREES));
 
 		if (swing <= 0.0F) {
 			return;

@@ -18,7 +18,7 @@
 	"hud.pingpong.left": "Left",
 	"hud.pingpong.right": "Right",
 	"hud.pingpong.status": "Paddle: %s | %s %s   Side: %s %s",
-	"hud.pingpong.hint": "Scroll: tilt | Alt+Scroll: side | C: hand | V: ball-cam %s",
+	"hud.pingpong.hint": "Scroll: tilt | Alt+Scroll: side | Ctrl+Scroll: spin | C: hand | V: ball-cam %s",
 	"hud.pingpong.hand.switched": "Now hitting %s",
 	"hud.pingpong.ballcam.on": "Ball-Cam: ON",
 	"hud.pingpong.ballcam.off": "Ball-Cam: OFF",
@@ -30,5 +30,6 @@
 	"stroke.pingpong.chop": "Chop",
 	"hud.pingpong.scroll.tilt": "Paddle tilt %+d%%  (+ forward = topspin, - back = backspin)",
 	"hud.pingpong.scroll.side": "Paddle side %+d%%  (+ right, - left)",
+	"hud.pingpong.scroll.spin": "Paddle spin %+d%%  (face rotates in the horizontal plane)",
 	"message.pingpong.cleared": "Recovered %s ping pong ball(s)"
 }
