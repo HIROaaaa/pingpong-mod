@@ -159,13 +159,35 @@ public final class PingPongAnimations {
 		m.translate(0.0F, -0.02F * (forward + follow), -0.11F * (forward + follow));
 	}
 
-	/** 攻球：水平从后往前扫，拍面几乎不变。 */
+	/**
+	 * 攻球（DRIVE）：水平从后往前扫、拍面几乎不变。
+	 *
+	 * 【2026-09-23 用户两次反馈】
+	 * ①「反手蓄力条在攻球的区间里的时候反手往胸前放的幅度太小」→ 反手引拍横移给到 0.12 格；
+	 * ②「蓄力的时候应该要一直往胸前收拍，但是现在是先往胸前收一段再往正手方向拉球的感觉」
+	 *   → 上一版的前挥段带了 `Y −16°` 与 `横移 −0.05`，等于把已经收到胸前的手**又推回外侧**，
+	 *   看起来就像"收一下又往正手方向扯"。现在**前挥只往前下方推、横向不再外移**，
+	 *   全程保持"收在胸前"的手位。
+	 */
 	private static void applyDrive(MatrixStack m, float windup, float forward, float follow, int sign) {
-		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-18.0F * windup * sign));
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-8.0F * windup));
-		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30.0F * forward * sign));
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(10.0F * forward));
-		m.translate(0.0F, -0.01F * (forward + follow), -0.10F * (forward + follow));
+		boolean forehand = sign > 0;
+		if (forehand) {
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-18.0F * windup * sign));
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-8.0F * windup));
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30.0F * forward * sign));
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(10.0F * forward));
+			m.translate(0.0F, -0.01F * (forward + follow), -0.10F * (forward + follow));
+		} else {
+			// 反手：引拍与挥拍**都保持在胸前**——引拍往胸前收、前挥只往前下方推
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(26.0F * windup));
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-6.0F * windup));
+			m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-8.0F * windup));
+			m.translate(0.12F * windup, 0.02F * windup, -0.03F * windup);
+			// 前挥：横向保持（不往正手方向拉），只往前下方推出去
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(6.0F * forward));
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(10.0F * forward));
+			m.translate(0.02F * forward, -0.01F * (forward + follow), -0.15F * (forward + follow));
+		}
 	}
 
 	/**
