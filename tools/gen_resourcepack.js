@@ -195,10 +195,21 @@ const packMeta = {
 };
 
 const texPath = 'assets/pingpong/textures/item/pingpong_paddle.png';
+const modelEntry = 'assets/pingpong/models/item/pingpong_paddle.json';
+const modelGeom = 'assets/pingpong/models/item/pingpong_paddle_v7.json';
+
+/*
+ * 【2026-09-23 修正：材质包必须带模型 JSON，不能只有贴图】
+ * 用户反馈：「材质包里的球拍你直接放了个2D的图片你知道吗，要3D的文件啊」——说得对。
+ * 球拍的"3D"由**模型 JSON 里的 elements**决定（32 个带厚度的方块），贴图只负责上色。
+ * 一个完整的资源包要把这两样都带上，否则装了也只有贴图效果、几何仍走 mod 内那份。
+ * 所以这里把模型入口（转发 parent）与几何文件一起打进包。
+ */
 const entries = [
   ['pack.mcmeta', Buffer.from(JSON.stringify(packMeta, null, 2), 'utf8')],
   [texPath, encodePng(SIZE, SIZE, paddleTexture().data)],
-  // 顺手把模型入口也带上（与资源包内贴图配套；行为与原版一致，只是保证路径存在）
+  [modelEntry, fs.readFileSync(path.join(ROOT, 'src/main/resources', modelEntry))],
+  [modelGeom, fs.readFileSync(path.join(ROOT, 'src/main/resources', modelGeom))],
   ['pack.png', encodePng(SIZE, SIZE, paddleTexture().data)],
 ];
 
