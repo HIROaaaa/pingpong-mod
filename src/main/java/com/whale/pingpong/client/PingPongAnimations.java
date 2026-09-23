@@ -161,7 +161,14 @@ public final class PingPongAnimations {
 		m.translate(0.0F, -0.01F * (forward + follow), -0.10F * (forward + follow));
 	}
 
-	/** 拉弧圈：引拍沉到身体下方、拍面朝下，然后由下往上刷。 */
+	/**
+	 * 拉弧圈：引拍沉到身体下方、拍面朝下，然后由下往上刷。
+	 *
+	 * 【2026-09-23 用户反馈】「正手拉球拉上来之后手臂会因为惯性继续往上，不会直接停住」——
+	 * 原来随挥只给 −18°，而且三段式在进度 1.0 处**直接切回静止**，手臂像被"摁住"一样停住。
+	 * 现在两处一起改：①随挥的向上旋转加大到 −34°（承接前挥的向上动量）；
+	 * ②随挥位移也再往上抬一点，形成"收拍在肩上方"的收势，而不是停在身前。
+	 */
 	private static void applyLoop(MatrixStack m, float windup, float forward, float follow, int sign) {
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(34.0F * windup));
 		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-14.0F * windup * sign));
@@ -169,7 +176,10 @@ public final class PingPongAnimations {
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-52.0F * forward));
 		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(16.0F * forward * sign));
 		m.translate(0.0F, 0.10F * forward, 0.0F);
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-18.0F * follow));
+		// 随挥：顺着前挥的向上动量继续抬（惯性），而不是停住
+		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-34.0F * follow));
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(6.0F * follow * sign));
+		m.translate(0.0F, 0.09F * follow, 0.02F * follow);
 	}
 
 	/**

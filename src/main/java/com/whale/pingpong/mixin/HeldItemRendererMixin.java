@@ -71,8 +71,11 @@ public class HeldItemRendererMixin {
 		} else {
 			progress = swingFallback(swingProgress);
 		}
-		// 动作按「这一拍要打什么」选：蓄力中显示预览，否则用上一拍
-		StrokeType stroke = PingPongClient.previewStroke(MinecraftClient.getInstance());
+		// 动作按「这一拍要打什么」选：**优先用实时按键判断**（零延迟），
+		// 没按任何键时才回退到上一拍的类型。
+		// 【2026-09-23】原来只用 previewStroke()，它依赖只在 tick 里更新的 attackKeyWasDown，
+		// 于是换手型（正↔反）或换击球种类（削→拉）后的头几帧会播出旧动作。
+		StrokeType stroke = PingPongClient.liveStroke(MinecraftClient.getInstance());
 		PingPongAnimations.apply(matrices,
 				PingPongClientState.tilt(), PingPongClientState.sideTilt(),
 				progress, PingPongClientState.hand(),
@@ -143,7 +146,10 @@ public class HeldItemRendererMixin {
 			} else {
 				progress = 0.0F;
 			}
-			stroke = PingPongClientState.lastStroke();
+			// 与第一人称一致：优先实时按键判断，回退到上一拍
+			// （第三人称也要零延迟，否则切手/换招后自己看到的还是旧动作）
+			StrokeType live = PingPongClient.liveStroke(MinecraftClient.getInstance());
+			stroke = live != null ? live : PingPongClientState.lastStroke();
 		} else {
 			// 别人：用服务端广播来的姿态（这是「能看出对方拍形与动作」的关键）
 			PaddlePoseCache.Pose pose = PaddlePoseCache.get(entity.getUuid());

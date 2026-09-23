@@ -32,7 +32,7 @@ public final class PingPongClientState {
 	 */
 	public static final double SCROLL_STEP = 0.25;
 	/** 挥拍动画持续多少 tick（仅用于 HUD 提示与动画相位） */
-	public static final int SWING_TICKS = 8;
+	public static final int SWING_TICKS = 10;
 
 	/** 左键轻点（不够 MIN 就当没蓄力） */
 	private static final int CHARGE_MIN_TICKS = 1;
@@ -145,8 +145,24 @@ public final class PingPongClientState {
 	/** 最近一次真正打出去的击球类型（第一人称动作要按它选）。 */
 	private static StrokeType lastStroke = StrokeType.DRIVE_FOREHAND;
 
+	/**
+	 * 最近一次真正打出去的击球类型，**按当前手型自动适配**。
+	 *
+	 * 【2026-09-23 修】用户反馈「正手换成反手之后拉球有的时候第一次动作还会是正手拉球的动作」。
+	 * 真因：`lastStroke` 存的是"上一拍的击球类型"，里面**带着当时的手型**
+	 * （如 `LOOP_FOREHAND`）。按 C 切到反手后、第一拍还没真正挥出去之前，
+	 * 渲染层（蓄力刚开始、`previewStroke` 尚未生效的那几帧）仍然读这个旧值，
+	 * 于是把正手动作播了出来。
+	 *
+	 * 现在按当前手型做一次转换：手型不符就把同一击球种类换成当前手型的版本。
+	 */
 	public static StrokeType lastStroke() {
-		return lastStroke;
+		StrokeType s = lastStroke;
+		if (s == null) {
+			return StrokeType.DRIVE_FOREHAND;
+		}
+		// flipHandIf(backhand)：手型与目标不一致时翻转，一致则原样返回
+		return s.flipHandIf(hand == PlayerHand.BACKHAND);
 	}
 
 	public static void setLastStroke(StrokeType stroke) {
@@ -254,8 +270,16 @@ public final class PingPongClientState {
 			boolean holdingBallOffhand = client.player.getOffHandStack().isOf(ModItems.PINGPONG_BALL);
 			boolean rightCharging = client.options.useKey.isPressed()
 					&& !holdingBallOffhand && !client.player.isSneaking();
-			if (client.options.attackKey.isPressed() || rightCharging) {
+			boolean anyCharging = client.options.attackKey.isPressed() || rightCharging;
+			if (anyCharging) {
 				chargeTicks = Math.min(chargeTicks + 1, CHARGE_FULL_TICKS);
+			} else if (swingTicks <= 0) {
+				// 【2026-09-23 修「快速双击后蓄力条卡住」】
+				// 原来这里**只加不减**：清零完全依赖 handleSwing 在"松手那一帧"调用 endCharge()。
+				// 快速连点两次时，第一下的松手与第二下的按下挤在同一帧附近，
+				// 松手分支可能整帧都没被执行到 → chargeTicks 卡在满值，蓄力条再也不动。
+				// 现在由 tick 兜底：只要两键都没按住、且不在挥拍动画里，就把蓄力清零。
+				chargeTicks = 0;
 			}
 		} else {
 			// 手里不是球拍：把当前角度写回原槽位存档，绝不归零（需求 2）

@@ -197,6 +197,43 @@ public class PingPongClient implements ClientModInitializer {
 		}
 	}
 
+	/**
+	 * 渲染层用的**实时**击球类型：直接读按键是否按住，不看 {@code attackKeyWasDown} 这类
+	 * 只在 tick 里更新的状态。
+	 *
+	 * 【2026-09-23 修「动作换不过来」】用户反馈「正手换成反手之后…第一次动作还会是正手」，
+	 * 随后补充「不只是这个，很多时候动作都会换不过来，包括削球后再拉球」。
+	 * 真因：`previewStroke()` 依赖 {@code attackKeyWasDown} / {@code useKeyWasDown}，
+	 * 而这两个布尔只在**客户端 tick** 里更新 —— 蓄力刚按下、状态还没翻过来的那几帧，
+	 * `previewStroke` 返回 null，渲染层只能回退到"上一拍的类型"，
+	 * 于是**换手型/换击球种类后的第一帧都是旧动作**。
+	 *
+	 * 现在渲染时直接问"哪个键正被按住 + 当前手型 + 蓄力进度"，当场算出类型，零延迟。
+	 * 返回 null 表示没在按键（此时调用方可以回退到上一拍）。
+	 */
+	public static StrokeType liveStroke(MinecraftClient client) {
+		if (client.player == null) {
+			return null;
+		}
+		boolean noScreen = client.currentScreen == null;
+		boolean holdingPaddle = client.player.getMainHandStack().getItem() instanceof PingPongPaddleItem;
+		if (!holdingPaddle || !noScreen) {
+			return null;
+		}
+		boolean holdingBallOffhand = client.player.getOffHandStack().isOf(ModItems.PINGPONG_BALL);
+		boolean backhand = PingPongClientState.hand() == PlayerHand.BACKHAND;
+		double ratio = PingPongClientState.chargeRatio();
+		// 左键：攻球 / 弧圈
+		if (client.options.attackKey.isPressed()) {
+			return StrokeType.select(backhand, false, ratio);
+		}
+		// 右键：搓球 / 削球（副手举球或潜行时右键归抛球/回收，不算击球）
+		if (client.options.useKey.isPressed() && !holdingBallOffhand && !client.player.isSneaking()) {
+			return StrokeType.select(backhand, true, ratio);
+		}
+		return null;
+	}
+
 	/** HUD 预览用：当前会打出哪一类击球（null = 没在蓄力）。 */
 	public static StrokeType previewStroke(MinecraftClient client) {
 		if (client.player == null) {
