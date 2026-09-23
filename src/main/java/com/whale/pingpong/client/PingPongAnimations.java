@@ -192,14 +192,37 @@ public final class PingPongAnimations {
 				-0.12F * (forward + follow));
 	}
 
-	/** 削球：高举拍面，然后从上往下劈（需求 21）。 */
+	/**
+	 * 削球（CHOP）：用户 2026-09-23 给了方向要求 ——
+	 * 「正手削球应该是正手往下砸一下，和拉球的动作差不多；反手是反手在胸前往下砸一下，
+	 *   手臂会在胸前开始往下画一个圆弧」。
+	 *
+	 * 所以两种手型的形态不同：
+	 *   · **正手**：举高 → 往下砸（幅度大，与拉球同源的"从高到低"发力），末端随挥继续向下；
+	 *   · **反手**：引拍**放在胸前**（不举到肩上）→ 由反手侧向正手侧横着扫出去，
+	 *     同时往下砸 —— 这就是"在胸前画一个圆弧"。横移比正手大，高度起点比正手低。
+	 */
 	private static void applyChop(MatrixStack m, float windup, float forward, float follow, int sign) {
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-46.0F * windup));
-		m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-12.0F * windup * sign));
-		m.translate(0.0F, 0.14F * windup, -0.02F * windup);
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(74.0F * forward));
-		m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(14.0F * forward * sign));
-		m.translate(0.0F, -0.16F * forward, -0.06F * forward);
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(16.0F * follow));
+		boolean forehand = sign > 0;
+		if (forehand) {
+			// 正手：举高再往下砸（保持原来的大幅度）
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-46.0F * windup));
+			m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-12.0F * windup * sign));
+			m.translate(0.0F, 0.14F * windup, -0.02F * windup);
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(74.0F * forward));
+			m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(14.0F * forward * sign));
+			m.translate(0.0F, -0.16F * forward, -0.06F * forward);
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(16.0F * follow));
+		} else {
+			// 反手：胸前起手 → 横向画圆弧 + 往下砸（高度起点低、横移大）
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-22.0F * windup));
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-20.0F * windup * sign));
+			m.translate(0.0F, 0.02F * windup, -0.04F * windup);
+			// 前挥：往下砸（X 正向）+ 从反手侧扫向正手侧（Y 正向给圆弧）
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(62.0F * forward));
+			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(34.0F * forward * sign));
+			m.translate(-0.06F * forward, -0.12F * forward, -0.04F * forward);
+			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(12.0F * follow));
+		}
 	}
 }
