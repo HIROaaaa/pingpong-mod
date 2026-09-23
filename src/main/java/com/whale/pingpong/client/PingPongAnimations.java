@@ -54,6 +54,21 @@ public final class PingPongAnimations {
 	 * @param stroke   击球类型（决定动作形态）；null 时退回通用三段式
 	 * @param inTable  是否站在台内（需求 19）：台内搓球时躯干前倾、手臂往台内伸
 	 */
+	/**
+	 * 最近一次实际套用到球拍上的动作参数（供 `/pingpong diag` 输出）。
+	 *
+	 * 【为什么记这个】反手动作改了几轮、用户有时说"又变回去了"，
+	 * 但**光看画面很难判断是"参数没生效"还是"参数生效了但不是想要的方向"**。
+	 * 把"手型 + 击球类型 + 三段权重"打出来，一次就能分清：
+	 *   · 手型/击球类型不对 → 是类型选择的问题（切手、liveStroke 那条链路）
+	 *   · 类型对了但 windup/forward 的权重不对 → 是动作参数的问题
+	 */
+	private static String lastApplied = "（还没套用过）";
+
+	public static String lastApplied() {
+		return lastApplied;
+	}
+
 	public static void apply(MatrixStack matrices, double tilt, double sideTilt, float progress, PlayerHand hand,
 							 StrokeType stroke, boolean inTable) {
 		float swing = MathHelper.clamp(progress, 0.0F, 1.0F);
@@ -97,9 +112,14 @@ public final class PingPongAnimations {
 		}
 
 		if (stroke == null) {
+			lastApplied = String.format("手型=%s 类型=null 进度=%.2f（w=%.2f f=%.2f）",
+					hand, swing, windup, forward);
 			applyGeneric(matrices, windup, forward, follow, handedSign);
 			return;
 		}
+		// 记录本次实际使用的参数（stroke 分支里也会更新一次，见下方 switch 前）
+		lastApplied = String.format("手型=%s 类型=%s 进度=%.2f（w=%.2f f=%.2f fo=%.2f）",
+				hand, stroke, swing, windup, forward, follow);
 
 		// 【Java 8 兼容】传统 switch 语句（原来是箭头式 case + 多标签 case）
 		switch (stroke) {

@@ -88,6 +88,11 @@ public final class PingPongDiagCommand {
 		}
 
 		sb.append('\n').append(PingPongModelPose.diagnostics());
+		// 挥拍动作的实际参数：一眼分清"类型选错了"还是"参数方向不对"
+		sb.append('\n').append("最近挥拍参数: ").append(PingPongAnimations.lastApplied());
+		sb.append('\n').append("当前手型: ").append(PingPongClientState.hand())
+				.append(" / 蓄力: ").append(String.format("%.0f%%", PingPongClientState.chargeRatio() * 100))
+				.append(" / 挥拍中: ").append(PingPongClientState.isSwinging() ? "是" : "否");
 		sb.append('\n').append(PaddleItemRenderer.diagnostics());
 
 		String full = sb.toString();
