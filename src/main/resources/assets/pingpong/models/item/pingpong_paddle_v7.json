@@ -1,7 +1,7 @@
 {
 	"comment": "球拍模型 v7。修正了 UV：MC 的模型 uv 是 16 单位制（0~16 = 整张贴图），之前误写成贴图像素坐标，导致每个面都采样整张图（拍面显示成木色）。现在 32×32 贴图的四象限分别换算为 [0,0,8,8] / [8,0,16,8] / [8,8,16,16] / [0,8,8,16]。",
 	"parent": "item/handheld",
-	"gui_light": "front",
+	"gui_light": "side",
 	"textures": {
 		"particle": "pingpong:item/pingpong_paddle",
 		"layer0": "pingpong:item/pingpong_paddle"
