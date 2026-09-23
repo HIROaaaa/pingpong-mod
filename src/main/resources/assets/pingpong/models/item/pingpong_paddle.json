@@ -1,4 +1,44 @@
 {
-	"comment": "转发入口：几何在 pingpong_paddle_v7.json（UV 已按 16 单位制修正）。",
-	"parent": "pingpong:item/pingpong_paddle_v7"
+	"comment": "球拍物品模型（2D）。2026-09-23 用户要求：「球拍材质就用2D的，画一个比较像乒乓球拍的2D的球拍，注意握持的样子」。改回 item/generated：贴图是 16×16 的球拍图标（拍面在上、柄向下竖直摆放），display 用默认手持角度、只做小幅微调，保证第一人称里柄在手里、拍面朝前而不是侧对镜头。原来的 3D 几何文件 pingpong_paddle_v3~v7.json 已随本次停用（需要时可从这里改回 parent 指向 v7）。",
+	"parent": "item/generated",
+	"textures": {
+		"layer0": "pingpong:item/pingpong_paddle"
+	},
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [0, -90, 0],
+			"translation": [0, 3, 1],
+			"scale": [0.85, 0.85, 0.85]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [0, 90, 0],
+			"translation": [0, 3, 1],
+			"scale": [0.85, 0.85, 0.85]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, -90, 25],
+			"translation": [1.13, 3.2, 1.13],
+			"scale": [0.68, 0.68, 0.68]
+		},
+		"firstperson_lefthand": {
+			"rotation": [0, 90, -25],
+			"translation": [1.13, 3.2, 1.13],
+			"scale": [0.68, 0.68, 0.68]
+		},
+		"gui": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 0, 0],
+			"scale": [1, 1, 1]
+		},
+		"ground": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 2, 0],
+			"scale": [0.5, 0.5, 0.5]
+		},
+		"fixed": {
+			"rotation": [0, 0, 0],
+			"translation": [0, 0, 0],
+			"scale": [1, 1, 1]
+		}
+	}
 }

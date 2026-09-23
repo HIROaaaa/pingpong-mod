@@ -114,6 +114,24 @@ public final class PingPongAnimations {
 		}
 	}
 
+	/**
+	 * 只做「引拍」那一段的挥拍进度（供**蓄力期间**使用）。
+	 *
+	 * 【为什么需要它】用户 2026-09-23 反馈：「拉球蓄力的时候第一时间没有动作，但是松开蓄力
+	 * 开始打球的时候球拍才呈现出往下拉的动作」。真因：`PingPongClientState.startSwing()`
+	 * 只在**松手**时调用，蓄力期间 `swingProgress()` 恒为 0 —— 于是
+	 * {@link #apply} 里 `swing <= 0` 直接 return，蓄力时**一点姿势反馈都没有**，
+	 * 全部动作都堆在松手后的 8 tick 里，看起来就是"松手才动、而且只动了一下"。
+	 *
+	 * 现在把蓄力进度映射成「引拍进度」：按住越久，球拍拉得越开（上限 0.9，留一点余量给击球瞬间）。
+	 * 抬手（击球）才交给 {@code startSwing()} 的三段式播放。
+	 *
+	 * @param chargeRatio 蓄力比例 0~1
+	 */
+	public static float chargeWindupProgress(double chargeRatio) {
+		return (float) MathHelper.clamp(chargeRatio * 0.9, 0.0, 0.9);
+	}
+
 	/** 旧的通用三段式挥拍（兜底，保持向后兼容）。 */
 	private static void applyGeneric(MatrixStack m, float windup, float forward, float follow, int sign) {
 		m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-26.0F * windup * sign));
@@ -146,13 +164,32 @@ public final class PingPongAnimations {
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-18.0F * follow));
 	}
 
-	/** 搓球：手臂放低、拍面托住球，向前下方推（需求 17）。 */
+	/**
+	 * 搓球（PUSH）：用户 2026-09-23 给了明确的方向要求 ——
+	 * 「正手搓球的动作应该是手向斜前方（右手拿拍就是右前）伸过去再搓，反手搓球应该是在身前搓」。
+	 *
+	 * 所以正反手在这里是**不对称**的：
+	 *   · 正手（sign=+1）：往**右前方**送 —— 明显的前伸 + 横向偏移，拍在身体斜前方；
+	 *   · 反手（sign=−1）：只在**身前**搓 —— 前伸为主、横向几乎不偏，拍贴着身体中线。
+	 * 两者都不"往下引拍"（用户明确指出「右键蓄力的时候不应该往下引拍」），
+	 * 引拍只是轻微后收，把动作让给"伸手去搓"。
+	 */
 	private static void applyPush(MatrixStack m, float windup, float forward, float follow, int sign) {
-		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-16.0F * windup));
-		m.translate(0.0F, -0.05F * windup, -0.03F * windup);
+		boolean forehand = sign > 0;
+		// 引拍：轻微后收 +（正手额外往斜前方让一点空间）
+		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-10.0F * windup));
+		if (forehand) {
+			m.translate(0.04F * windup, 0.02F * windup, -0.02F * windup);
+		} else {
+			m.translate(0.0F, 0.02F * windup, -0.01F * windup);
+		}
+		// 前挥：伸手去搓。正手横着往斜前方送，反手只往前送
 		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(6.0F * forward));
-		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(10.0F * forward * sign));
-		m.translate(0.0F, -0.06F * (forward + follow), -0.09F * (forward + follow));
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((forehand ? 26.0F : 6.0F) * forward * sign));
+		m.translate(
+				forehand ? 0.10F * (forward + follow) : 0.02F * (forward + follow),
+				-0.05F * (forward + follow),
+				-0.12F * (forward + follow));
 	}
 
 	/** 削球：高举拍面，然后从上往下劈（需求 21）。 */

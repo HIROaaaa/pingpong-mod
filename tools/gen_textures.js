@@ -278,6 +278,57 @@ function tableIcon() {
 }
 
 /** 图标里用的平面球拍小图（不从 3D 贴图集里裁，避免模糊） */
+/**
+ * 球拍**物品图标**（2D，16×16）—— 2026-09-23 用户要求：
+ * 「球拍材质就用2D的，画一个比较像乒乓球拍的2D的球拍，注意握持的样子」。
+ *
+ * 造型要点（按真实球拍画）：
+ *   · 拍面是**圆形**，居上偏中，直径约 11 像素（真实球拍拍面直径 ≈ 0.15 格）
+ *   · 深色描边一圈，红胶皮带高光，看着是胶皮不是纯色圆盘
+ *   · 柄从拍面下缘往下延伸，木色 + 两侧边缘色，末端略宽（真实球拍柄就是这个样）
+ *   · 整体**竖直摆放**：拍面在上、柄向下 —— 这样配合 `item/handheld` 的默认角度，
+ *     手持时柄在手里、拍面朝前，比斜放的图标更像"握着球拍"
+ */
+function paddleItemIcon() {
+  const c = new Canvas(16);
+  const cx = 8.0, cy = 6.0, r = 5.2;
+
+  // 拍面：红胶皮 + 深色描边 + 左上高光
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d > r) continue;
+      if (d > r - 1.0) {
+        c.set(x, y, [96, 16, 16]);          // 描边（深红）
+      } else if (d > r - 2.0) {
+        c.set(x, y, RUBBER_DARK);           // 内圈暗化，做出厚度感
+      } else {
+        c.set(x, y, RUBBER);                // 胶皮主体
+      }
+    }
+  }
+  // 高光（左上）
+  c.disc(cx - 1.6, cy - 1.6, 1.6, [222, 72, 58]);
+
+  // 柄：竖向，从拍面下缘往下，末端略宽
+  for (let y = 11; y <= 15; y++) {
+    const wide = y >= 14;                   // 末端喇叭口
+    const x0 = wide ? 6 : 7;
+    const x1 = wide ? 9 : 8;
+    for (let x = x0; x <= x1; x++) {
+      const edge = x === x0 || x === x1;
+      c.set(x, y, edge ? WOOD_DARK : WOOD);
+    }
+  }
+  // 柄上的握把纹（两道深色横线）
+  for (let x = 7; x <= 8; x++) {
+    c.set(x, 12, WOOD_DARK);
+    c.set(x, 14, WOOD_DARK);
+  }
+  return c;
+}
+
 function paddleSprite() {
   const c = new Canvas(16);
   const cx = 10.2, cy = 5.4, r = 4.6;
@@ -336,7 +387,8 @@ const itemDir = path.join(root, 'textures', 'item');
 
 ball().save(path.join(itemDir, 'pingpong_ball.png'));
 ball().save(path.join(root, 'textures', 'entity', 'pingpong_ball.png'));
-paddleAtlas().save(path.join(itemDir, 'pingpong_paddle.png'));
+// 【2026-09-23】用户要求球拍改回 2D 图标：不再用四象限图集，直接输出 16×16 的球拍图
+paddleItemIcon().save(path.join(itemDir, 'pingpong_paddle.png'));
 tableIcon().save(path.join(itemDir, 'pingpong_table.png'));
 tableTop().save(path.join(blockDir, 'table_top.png'));
 woodPatch(WOOD_DARK, [66, 44, 22], WOOD).save(path.join(blockDir, 'table_leg.png'));

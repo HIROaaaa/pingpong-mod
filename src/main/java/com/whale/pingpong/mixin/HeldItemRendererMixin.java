@@ -59,9 +59,18 @@ public class HeldItemRendererMixin {
 		this.pingpong$firstPersonPushed = true;
 
 		// 本地实时状态：滚轮/按键的回馈必须是零延迟的
-		float progress = PingPongClientState.isSwinging()
-				? PingPongClientState.swingProgress()
-				: swingFallback(swingProgress);
+		//
+		// 【2026-09-23 补：蓄力期间也要有动作】用户反馈「蓄力的时候第一时间没有动作，
+		// 松手开始打球的时候球拍才呈现动作」。真因是 startSwing() 只在松手时调用。
+		// 现在三分支：挥拍中走三段式；**蓄力中走引拍**（按住越久拉得越开）；都没有才静止。
+		float progress;
+		if (PingPongClientState.isSwinging()) {
+			progress = PingPongClientState.swingProgress();
+		} else if (PingPongClientState.isCharging()) {
+			progress = PingPongAnimations.chargeWindupProgress(PingPongClientState.chargeRatio());
+		} else {
+			progress = swingFallback(swingProgress);
+		}
 		// 动作按「这一拍要打什么」选：蓄力中显示预览，否则用上一拍
 		StrokeType stroke = PingPongClient.previewStroke(MinecraftClient.getInstance());
 		PingPongAnimations.apply(matrices,
@@ -126,7 +135,14 @@ public class HeldItemRendererMixin {
 			tilt = PingPongClientState.tilt();
 			sideTilt = PingPongClientState.sideTilt();
 			hand = PingPongClientState.hand();
-			progress = PingPongClientState.isSwinging() ? PingPongClientState.swingProgress() : 0.0F;
+			// 与第一人称一致：挥拍中播三段式、蓄力中播引拍（否则蓄力时看不到任何动作）
+			if (PingPongClientState.isSwinging()) {
+				progress = PingPongClientState.swingProgress();
+			} else if (PingPongClientState.isCharging()) {
+				progress = PingPongAnimations.chargeWindupProgress(PingPongClientState.chargeRatio());
+			} else {
+				progress = 0.0F;
+			}
 			stroke = PingPongClientState.lastStroke();
 		} else {
 			// 别人：用服务端广播来的姿态（这是「能看出对方拍形与动作」的关键）
