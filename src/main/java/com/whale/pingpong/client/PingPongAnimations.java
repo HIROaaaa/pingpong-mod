@@ -193,36 +193,32 @@ public final class PingPongAnimations {
 	}
 
 	/**
-	 * 削球（CHOP）：用户 2026-09-23 给了方向要求 ——
-	 * 「正手削球应该是正手往下砸一下，和拉球的动作差不多；反手是反手在胸前往下砸一下，
-	 *   手臂会在胸前开始往下画一个圆弧」。
+	 * 削球（CHOP）：按**真实技术描述**重做（2026-09-23 用户提示「你找一下现实中削球动作的描述」）。
 	 *
-	 * 所以两种手型的形态不同：
-	 *   · **正手**：举高 → 往下砸（幅度大，与拉球同源的"从高到低"发力），末端随挥继续向下；
-	 *   · **反手**：引拍**放在胸前**（不举到肩上）→ 由反手侧向正手侧横着扫出去，
-	 *     同时往下砸 —— 这就是"在胸前画一个圆弧"。横移比正手大，高度起点比正手低。
+	 * 查证来源与要点：
+	 *   · [百度百科·削球]：正手「向右后上方引拍与肩同高」→「上臂带动前臂由右上向左前下方加速切削」，
+	 *     在身体右侧约 40cm 处触球；反手「向左上方引拍约与肩高、拍柄向下」→「从左上方向右前下方挥动」，
+	 *     在胸前偏左 30cm 处击球，顺势挥至右侧下。两者共同点：**挥拍呈圆弧路线**、动作幅度大。
+	 *   · [PingSkills 教练答]：正手「球拍从右耳后方开始，向下切，收在左膝」；
+	 *     反手「从左耳后方开始，收在右膝」。
+	 *
+	 * 落到本项目（sign：正手 +1 / 反手 −1；Y 轴旋转的正向 = 往反手侧/左，负向 = 往正手侧/右）：
+	 *   · 正手：引拍往**右后上**（Y 负、X 负=举高）→ 前挥往**左前下**（Y 正、X 正=下砸），横移大
+	 *   · 反手：引拍往**左后上**（Y 正、X 负）→ 前挥往**右前下**（Y 负、X 正），横移大
+	 * 两种手型的 X/Y 符号都相反，所以圆弧的绕行方向天然相反 —— 这正是"正反手方向相反"。
 	 */
 	private static void applyChop(MatrixStack m, float windup, float forward, float follow, int sign) {
-		boolean forehand = sign > 0;
-		if (forehand) {
-			// 正手：举高再往下砸（保持原来的大幅度）
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-46.0F * windup));
-			m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-12.0F * windup * sign));
-			m.translate(0.0F, 0.14F * windup, -0.02F * windup);
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(74.0F * forward));
-			m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(14.0F * forward * sign));
-			m.translate(0.0F, -0.16F * forward, -0.06F * forward);
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(16.0F * follow));
-		} else {
-			// 反手：胸前起手 → 横向画圆弧 + 往下砸（高度起点低、横移大）
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-22.0F * windup));
-			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-20.0F * windup * sign));
-			m.translate(0.0F, 0.02F * windup, -0.04F * windup);
-			// 前挥：往下砸（X 正向）+ 从反手侧扫向正手侧（Y 正向给圆弧）
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(62.0F * forward));
-			m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(34.0F * forward * sign));
-			m.translate(-0.06F * forward, -0.12F * forward, -0.04F * forward);
-			m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(12.0F * follow));
-		}
+		// 引拍：往侧后方上方举拍（与肩同高）
+		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-44.0F * windup));
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-18.0F * windup * sign));  // 正手往右、反手往左
+		m.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-10.0F * windup * sign));
+		m.translate(0.10F * windup * sign, 0.14F * windup, -0.02F * windup);
+		// 前挥：往另一侧的前下方切 —— 横向大幅扫过（圆弧的"画弧"部分）+ 明显下砸
+		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(70.0F * forward));
+		m.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(30.0F * forward * sign));  // 与引拍反向
+		m.translate(-0.16F * forward * sign, -0.15F * forward, -0.08F * forward);
+		// 随挥：继续往侧下方收（真实动作里收在对侧膝旁）
+		m.multiply(RotationAxis.POSITIVE_X.rotationDegrees(14.0F * follow));
+		m.translate(-0.08F * follow * sign, -0.05F * follow, 0.0F);
 	}
 }
